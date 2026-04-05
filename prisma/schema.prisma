@@ -1,0 +1,609 @@
+// Executive Mochi – Prisma Schema
+// SRS v1.0 | Section 6.1 Ground-Truth Data Model
+// Any schema changes require a formal SRS revision.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ─────────────────────────────────────────────
+// ENUMERATIONS (SRS Section 6.3)
+// ─────────────────────────────────────────────
+
+enum UserRole {
+  CUSTOMER
+  BRANCH_MANAGER
+  ADMIN
+  WAREHOUSE_STAFF
+}
+
+enum LoyaltyTier {
+  BRONZE
+  SILVER
+  GOLD
+}
+
+enum ProductCategory {
+  MEN
+  WOMEN
+  KIDS
+}
+
+enum Occasion {
+  ETHNIC
+  WEDDING
+  SPORTS
+  FORMAL
+  CASUAL
+}
+
+enum Style {
+  LOAFERS
+  OXFORD
+  MOCCASINS
+  PESHAWARI
+  SANDALS
+  SNEAKERS
+}
+
+enum LeatherType {
+  CALF_SKIN
+  GOAT_LEATHER
+  SUEDE
+  NUBUCK
+  PREMIUM_SYNTHETIC
+}
+
+enum Width {
+  STANDARD
+  WIDE
+  EXTRA_WIDE
+}
+
+enum OrderStatus {
+  PENDING
+  PENDING_VERIFICATION
+  VERIFIED
+  PROCESSING
+  PACKED
+  SHIPPED
+  OUT_FOR_DELIVERY
+  DELIVERED
+  CANCELLED
+  CANCELLED_VERIFICATION_FAILED
+  RTO
+  RETURNED
+}
+
+enum PaymentMethod {
+  COD
+  RAAST
+  JAZZCASH
+  EASYPAISA
+  CARD
+  STORE_CREDIT
+  LOYALTY_POINTS
+}
+
+enum PaymentStatus {
+  UNPAID
+  PAID_DIGITAL
+  COD_PENDING_COLLECTION
+  COD_SETTLED_BY_COURIER
+  REFUNDED
+  PARTIAL_REFUND
+}
+
+enum CourierService {
+  LEOPARDS
+  POSTEX
+  TRAX
+  PAKISTAN_POST
+}
+
+enum ReturnStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  RETURN_SHIPPED
+  RECEIVED
+  INSPECTING
+  COMPLETED
+  CANCELLED
+}
+
+enum ReturnReason {
+  SIZE_DOES_NOT_FIT
+  DAMAGED
+  WRONG_PRODUCT
+  CHANGED_MIND
+  QUALITY_ISSUE
+}
+
+enum ReturnResolution {
+  EXCHANGE_SIZE
+  EXCHANGE_PRODUCT
+  STORE_CREDIT
+  REFUND
+}
+
+enum CreditStatus {
+  ACTIVE
+  REDEEMED
+  EXPIRED
+}
+
+enum TransferStatus {
+  PENDING
+  IN_TRANSIT
+  RECEIVED
+  REJECTED
+}
+
+enum InventoryTransactionType {
+  SALE
+  TRANSFER_OUT
+  TRANSFER_IN
+  RETURN
+  ADJUSTMENT
+  RESTOCK
+  DAMAGE_WRITE_OFF
+}
+
+// ─────────────────────────────────────────────
+// SECTION 6.1.1 – CORE ENTITY MODELS
+// ─────────────────────────────────────────────
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String   // bcrypt hashed (cost factor ≥ 10, NFR-SEC-05)
+  name      String
+  phone     String?
+  role      UserRole @default(CUSTOMER)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  customerProfile  Customer?
+  branchManager    BranchManager?
+  orders           Order[]
+  cartItems        CartItem[]
+  wishlistItems    WishlistItem[]
+  returnRequests   ReturnRequest[]
+  stockAdjustments StockAdjustment[]
+
+  @@map("users")
+}
+
+model Branch {
+  id             String   @id @default(cuid())
+  name           String   // "Pasrur Branch", "Daska Branch"
+  city           String
+  address        String
+  landmark       String?
+  phone          String
+  managerName    String
+  operatingHours String?
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Relations
+  branchManager    BranchManager?
+  inventory        Inventory[]
+  orders           Order[]
+  stockTransfersOut StockTransfer[] @relation("SourceBranch")
+  stockTransfersIn  StockTransfer[] @relation("DestinationBranch")
+
+  @@map("branches")
+}
+
+model BranchManager {
+  id       String @id @default(cuid())
+  userId   String @unique
+  branchId String @unique
+
+  user   User   @relation(fields: [userId], references: [id])
+  branch Branch @relation(fields: [branchId], references: [id])
+
+  @@map("branch_managers")
+}
+
+model Customer {
+  id               String      @id @default(cuid())
+  userId           String      @unique
+  dateOfBirth      DateTime?
+  newsletterOptIn  Boolean     @default(false)
+  loyaltyPoints    Int         @default(0)
+  loyaltyTier      LoyaltyTier @default(BRONZE)
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  // Relations
+  user            User             @relation(fields: [userId], references: [id])
+  addresses       Address[]
+  orders          Order[]
+  cartItems       CartItem[]
+  wishlistItems   WishlistItem[]
+  reviews         Review[]
+  returnRequests  ReturnRequest[]
+  sizePreferences SizePreference[]
+  storeCredits    StoreCredit[]
+
+  @@map("customers")
+}
+
+// ─────────────────────────────────────────────
+// SECTION 6.1.2 – PRODUCT MODELS
+// ─────────────────────────────────────────────
+
+model Product {
+  id                String          @id @default(cuid())
+  articleNumber     String          @unique  // e.g. EM-001, brand-specific article no
+  name              String          @unique
+  slug              String          @unique
+  description       String          @db.Text
+  basePrice         Decimal         @db.Decimal(10, 2)
+  salePrice         Decimal?        @db.Decimal(10, 2)  // discounted price if on sale
+  category          ProductCategory
+  occasion          Occasion[]
+  style             Style
+  leatherType       LeatherType
+  manufacturingCity String          // Pasrur | Daska | Imported
+  metaTitle         String?
+  metaDescription   String?
+  isActive          Boolean         @default(true)
+  isFeatured        Boolean         @default(false)
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  // Relations
+  variants      ProductVariant[]
+  images        ProductImage[]
+  reviews       Review[]
+  wishlistItems WishlistItem[]
+
+  @@map("products")
+}
+
+model ProductVariant {
+  id        String  @id @default(cuid())
+  productId String
+  sku       String  @unique  // Format: [ARTICLE]-[COLOR]-[SIZE]-[WIDTH] e.g. EM001-BLK-42-STD
+  sizeUK    String           // Primary size standard (UK/Pakistan)
+  sizeUS    String
+  sizeEU    String
+  sizeCM    String           // foot length in CM
+  color     String
+  colorHex  String
+  width     Width   @default(STANDARD)
+  priceDelta Decimal @db.Decimal(10, 2) @default(0)  // additional charge for premium materials
+  isActive  Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  product    Product        @relation(fields: [productId], references: [id])
+  inventory  Inventory[]
+  cartItems  CartItem[]
+  orderItems OrderItem[]
+  transactions InventoryTransaction[]
+
+  @@map("product_variants")
+}
+
+model ProductImage {
+  id        String  @id @default(cuid())
+  productId String
+  url       String
+  altText   String?
+  isPrimary Boolean @default(false)
+  colorTag  String? // associate image with specific color variant
+  sortOrder Int     @default(0)
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@map("product_images")
+}
+
+// ─────────────────────────────────────────────
+// SECTION 6.1.3 – INVENTORY MODELS
+// ─────────────────────────────────────────────
+
+model Inventory {
+  id               String @id @default(cuid())
+  branchId         String
+  variantId        String
+  quantity         Int    @default(0)
+  reserved         Int    @default(0)  // reserved for pending COD verification
+  lowStockThreshold Int   @default(5)
+  updatedAt        DateTime @updatedAt
+
+  branch  Branch         @relation(fields: [branchId], references: [id])
+  variant ProductVariant @relation(fields: [variantId], references: [id])
+
+  @@unique([branchId, variantId])
+  @@map("inventory")
+}
+
+model InventoryTransaction {
+  id          String                   @id @default(cuid())
+  variantId   String
+  branchId    String
+  quantity    Int                      // positive = increment, negative = decrement
+  type        InventoryTransactionType
+  referenceId String                   // orderId | transferId | returnId
+  createdAt   DateTime                 @default(now())
+  userId      String
+
+  variant ProductVariant @relation(fields: [variantId], references: [id])
+
+  @@map("inventory_transactions")
+}
+
+model StockTransfer {
+  id             String         @id @default(cuid())
+  transferNumber String         @unique
+  sourceBranchId String
+  destBranchId   String
+  status         TransferStatus @default(PENDING)
+  reason         String
+  transferDate   DateTime
+  dispatchedAt   DateTime?
+  receivedAt     DateTime?
+  trackingNumber String?
+  createdAt      DateTime       @default(now())
+  initiatedBy    String         // userId
+
+  sourceBranch Branch @relation("SourceBranch", fields: [sourceBranchId], references: [id])
+  destBranch   Branch @relation("DestinationBranch", fields: [destBranchId], references: [id])
+  items        StockTransferItem[]
+
+  @@map("stock_transfers")
+}
+
+model StockTransferItem {
+  id          String @id @default(cuid())
+  transferId  String
+  variantId   String
+  quantity    Int
+  notes       String?
+
+  transfer StockTransfer @relation(fields: [transferId], references: [id], onDelete: Cascade)
+
+  @@map("stock_transfer_items")
+}
+
+model StockAdjustment {
+  id         String   @id @default(cuid())
+  variantId  String
+  branchId   String
+  quantity   Int      // can be negative (damage write-off)
+  reason     String   // DAMAGE_WRITE_OFF | INVENTORY_CORRECTION | SAMPLE_REMOVAL | RETURN_TO_VENDOR
+  notes      String?
+  userId     String
+  createdAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("stock_adjustments")
+}
+
+// ─────────────────────────────────────────────
+// SECTION 6.1.4 – ORDER MODELS
+// ─────────────────────────────────────────────
+
+model Order {
+  id             String        @id @default(cuid())
+  orderNumber    String        @unique
+  userId         String
+  customerId     String?
+  branchId       String
+  status         OrderStatus   @default(PENDING)
+  orderType      String        @default("ONLINE")  // ONLINE | IN_STORE
+  totalAmount    Decimal       @db.Decimal(10, 2)
+  shippingCost   Decimal       @db.Decimal(10, 2)
+  discountAmount Decimal       @db.Decimal(10, 2) @default(0)
+  paymentMethod  PaymentMethod
+  paymentStatus  PaymentStatus @default(UNPAID)
+  courierService CourierService?
+  awbNumber      String?
+  trackingNumber String?
+  notes          String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  // Relations
+  user            User             @relation(fields: [userId], references: [id])
+  customer        Customer?        @relation(fields: [customerId], references: [id])
+  branch          Branch           @relation(fields: [branchId], references: [id])
+  items           OrderItem[]
+  shippingAddress ShippingAddress?
+  returnRequests  ReturnRequest[]
+  reviews         Review[]
+
+  @@map("orders")
+}
+
+model OrderItem {
+  id        String  @id @default(cuid())
+  orderId   String
+  variantId String
+  quantity  Int
+  unitPrice Decimal @db.Decimal(10, 2)
+  subtotal  Decimal @db.Decimal(10, 2)
+
+  order   Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  variant ProductVariant @relation(fields: [variantId], references: [id])
+
+  @@map("order_items")
+}
+
+model ShippingAddress {
+  id         String  @id @default(cuid())
+  orderId    String  @unique
+  fullName   String
+  phone      String
+  street     String
+  city       String
+  province   String
+  postalCode String?
+  country    String  @default("Pakistan")
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@map("shipping_addresses")
+}
+
+// ─────────────────────────────────────────────
+// SECTION 6.1.5 – RETURNS AND STORE CREDIT
+// ─────────────────────────────────────────────
+
+model ReturnRequest {
+  id           String           @id @default(cuid())
+  returnNumber String           @unique
+  orderId      String
+  customerId   String
+  userId       String
+  status       ReturnStatus     @default(PENDING)
+  reason       ReturnReason
+  resolution   ReturnResolution
+  notes        String?          @db.Text
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  order       Order       @relation(fields: [orderId], references: [id])
+  customer    Customer    @relation(fields: [customerId], references: [id])
+  user        User        @relation(fields: [userId], references: [id])
+  items       ReturnItem[]
+  storeCredit StoreCredit?
+
+  @@map("return_requests")
+}
+
+model ReturnItem {
+  id              String @id @default(cuid())
+  returnRequestId String
+  variantId       String
+  quantity        Int
+  conditionNotes  String?
+
+  returnRequest ReturnRequest @relation(fields: [returnRequestId], references: [id], onDelete: Cascade)
+
+  @@map("return_items")
+}
+
+model StoreCredit {
+  id              String       @id @default(cuid())
+  customerId      String
+  returnRequestId String?      @unique
+  voucherCode     String       @unique
+  amount          Decimal      @db.Decimal(10, 2)
+  remaining       Decimal      @db.Decimal(10, 2)
+  issuedFrom      String
+  issuedAt        DateTime     @default(now())
+  expiresAt       DateTime
+  status          CreditStatus @default(ACTIVE)
+  redeemedAt      DateTime?
+  redeemedOrderId String?
+
+  customer      Customer       @relation(fields: [customerId], references: [id])
+  returnRequest ReturnRequest? @relation(fields: [returnRequestId], references: [id])
+
+  @@map("store_credits")
+}
+
+// ─────────────────────────────────────────────
+// CUSTOMER SELF-SERVICE MODELS
+// ─────────────────────────────────────────────
+
+model Address {
+  id         String  @id @default(cuid())
+  customerId String
+  label      String? // Home | Office | Other
+  fullName   String
+  phone      String
+  street     String
+  city       String
+  province   String
+  postalCode String?
+  country    String  @default("Pakistan")
+  isDefault  Boolean @default(false)
+
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@map("addresses")
+}
+
+model CartItem {
+  id         String   @id @default(cuid())
+  userId     String
+  customerId String?
+  variantId  String
+  quantity   Int
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user     User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  customer Customer?      @relation(fields: [customerId], references: [id])
+  variant  ProductVariant @relation(fields: [variantId], references: [id])
+
+  @@unique([userId, variantId])
+  @@map("cart_items")
+}
+
+model WishlistItem {
+  id         String   @id @default(cuid())
+  userId     String
+  customerId String?
+  productId  String
+  addedAt    DateTime @default(now())
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  customer Customer? @relation(fields: [customerId], references: [id])
+  product  Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, productId])
+  @@map("wishlist_items")
+}
+
+model Review {
+  id         String   @id @default(cuid())
+  productId  String
+  customerId String
+  orderId    String
+  rating     Int      // 1-5
+  title      String?
+  body       String?  @db.Text
+  isApproved Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  product  Product  @relation(fields: [productId], references: [id])
+  customer Customer @relation(fields: [customerId], references: [id])
+  order    Order    @relation(fields: [orderId], references: [id])
+
+  @@map("reviews")
+}
+
+model SizePreference {
+  id         String @id @default(cuid())
+  customerId String
+  style      Style  // per style size memory (FR-CRM-03)
+  sizeUK     String
+  width      Width  @default(STANDARD)
+  notes      String?
+  updatedAt  DateTime @updatedAt
+
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@unique([customerId, style])
+  @@map("size_preferences")
+}

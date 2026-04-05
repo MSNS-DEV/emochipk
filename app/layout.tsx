@@ -1,0 +1,76 @@
+import './globals.css'
+import type { Metadata, Viewport } from 'next'
+import { Cormorant_Garamond, Inter } from 'next/font/google'
+import { Analytics } from '@vercel/analytics/next'
+import { Providers } from '@/app/providers'
+import { CartProvider } from '@/lib/cart-context'
+import { Toaster } from '@/components/ui/sonner'
+
+const cormorant = Cormorant_Garamond({ 
+  subsets: ['latin'],
+  weight: ['300', '400', '500', '600', '700'],
+  variable: '--font-cormorant',
+  display: 'swap',
+})
+
+const inter = Inter({ 
+  subsets: ['latin'],
+  variable: '--font-inter',
+  display: 'swap',
+})
+
+export const metadata: Metadata = {
+  title: {
+    default: 'Executive Mochi - Luxury Handcrafted Footwear',
+    template: '%s | Executive Mochi',
+  },
+  description: 'Discover premium handcrafted leather shoes from Pakistan. Executive Mochi offers luxury formal shoes, boots, loafers, and traditional Peshawaris crafted by master artisans.',
+  keywords: ['luxury shoes', 'handcrafted footwear', 'Pakistani shoes', 'leather shoes', 'formal shoes', 'Peshawari', 'Executive Mochi'],
+  authors: [{ name: 'Executive Mochi' }],
+  creator: 'Executive Mochi',
+  publisher: 'Executive Mochi',
+  formatDetection: { email: false, address: false, telephone: false },
+  openGraph: {
+    type: 'website',
+    locale: 'en_PK',
+    url: 'https://executivemochi.pk',
+    siteName: 'Executive Mochi',
+    title: 'Executive Mochi - Luxury Handcrafted Footwear',
+    description: 'Discover premium handcrafted leather shoes from Pakistan.',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Executive Mochi - Luxury Handcrafted Footwear',
+    description: 'Discover premium handcrafted leather shoes from Pakistan.',
+  },
+  robots: { index: true, follow: true },
+}
+
+export const viewport: Viewport = {
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#f5f3ef' },
+    { media: '(prefers-color-scheme: dark)', color: '#2d2820' },
+  ],
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 5,
+  userScalable: true,
+}
+
+export default function RootLayout({
+  children,
+}: Readonly<{ children: React.ReactNode }>) {
+  return (
+    <html lang="en" className={`${cormorant.variable} ${inter.variable}`}>
+      <body className="font-sans antialiased min-h-screen">
+        <Providers>
+          <CartProvider>
+            {children}
+            <Toaster />
+          </CartProvider>
+        </Providers>
+        <Analytics />
+      </body>
+    </html>
+  )
+}
