@@ -1,5 +1,9 @@
 import { z } from "zod";
-import { createTRPCRouter, publicProcedure, adminProcedure } from "@/server/trpc";
+import {
+  createTRPCRouter,
+  publicProcedure,
+  adminProcedure,
+} from "@/server/trpc";
 
 const BranchSchema = z.object({
   name: z.string().min(1),
@@ -18,26 +22,33 @@ export const branchRouter = createTRPCRouter({
     ctx.db.branch.findMany({
       where: { isActive: true },
       include: {
-        branchManager: { include: { user: { select: { name: true, email: true } } } },
+        branchManager: {
+          include: { user: { select: { name: true, email: true } } },
+        },
         _count: { select: { inventory: true, orders: true } },
       },
       orderBy: { name: "asc" },
-    })
+    }),
   ),
 
   getById: publicProcedure.input(z.string()).query(({ ctx, input }) =>
     ctx.db.branch.findUnique({
       where: { id: input },
       include: {
-        branchManager: { include: { user: { select: { name: true, email: true } } } },
-        inventory: { include: { variant: { include: { product: true } } }, take: 10 },
+        branchManager: {
+          include: { user: { select: { name: true, email: true } } },
+        },
+        inventory: {
+          include: { variant: { include: { product: true } } },
+          take: 10,
+        },
       },
-    })
+    }),
   ),
 
-  create: adminProcedure.input(BranchSchema).mutation(({ ctx, input }) =>
-    ctx.db.branch.create({ data: input })
-  ),
+  create: adminProcedure
+    .input(BranchSchema)
+    .mutation(({ ctx, input }) => ctx.db.branch.create({ data: input })),
 
   update: adminProcedure
     .input(BranchSchema.partial().extend({ id: z.string() }))
@@ -49,17 +60,22 @@ export const branchRouter = createTRPCRouter({
   setActive: adminProcedure
     .input(z.object({ id: z.string(), isActive: z.boolean() }))
     .mutation(({ ctx, input }) =>
-      ctx.db.branch.update({ where: { id: input.id }, data: { isActive: input.isActive } })
+      ctx.db.branch.update({
+        where: { id: input.id },
+        data: { isActive: input.isActive },
+      }),
     ),
 
   /** Admin list with inventory stats */
-  adminList: adminProcedure.query(({ ctx }) =>
-    ctx.db.branch.findMany({
+  adminList: adminProcedure.query(async ({ ctx }) => {
+    return await ctx.db.branch.findMany({
       include: {
-        branchManager: { include: { user: { select: { name: true, email: true } } } },
+        branchManager: {
+          include: { user: { select: { name: true, email: true } } },
+        },
         _count: { select: { inventory: true, orders: true } },
       },
       orderBy: { createdAt: "asc" },
-    })
-  ),
+    });
+  }),
 });
