@@ -53,7 +53,7 @@ export default function AdminBranchesPage() {
 
       <div className="grid md:grid-cols-2 gap-4">
         {isLoading && <div className="col-span-2 text-zinc-500 text-sm py-10 text-center">Loading…</div>}
-        {branches?.map((b) => (
+        {branches?.map((b: any) => (
           <div key={b.id} className="bg-zinc-900 border border-white/5 rounded-xl p-5 space-y-3">
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-3">

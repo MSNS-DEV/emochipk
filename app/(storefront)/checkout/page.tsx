@@ -51,9 +51,9 @@ export default function CheckoutPage() {
 
   const [formData, setFormData] = useState({
     email: user?.email || '',
-    phone: user?.phone || '',
-    firstName: user?.firstName || '',
-    lastName: user?.lastName || '',
+    phone: (user as any)?.phone || '',
+    firstName: user?.name?.split(' ')[0] || '',
+    lastName: user?.name?.split(' ').slice(1).join(' ') || '',
     address: '',
     apartment: '',
     city: '',

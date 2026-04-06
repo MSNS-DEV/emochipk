@@ -176,7 +176,7 @@ export default async function HomePage() {
               </Button>
             </div>
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
-              {(featured as CatalogProduct[]).map((product) => (
+              {(featured as unknown as CatalogProduct[]).map((product) => (
                 <ProductCard key={product.id} product={product} />
               ))}
             </div>
@@ -238,7 +238,7 @@ export default async function HomePage() {
               </Button>
             </div>
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
-              {(newArrivals as CatalogProduct[]).map((product) => (
+              {(newArrivals as unknown as CatalogProduct[]).map((product) => (
                 <ProductCard key={product.id} product={product} />
               ))}
             </div>
@@ -264,7 +264,7 @@ export default async function HomePage() {
               </Button>
             </div>
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
-              {(onSale as CatalogProduct[]).map((product) => (
+              {(onSale as unknown as CatalogProduct[]).map((product) => (
                 <ProductCard key={product.id} product={product} />
               ))}
             </div>

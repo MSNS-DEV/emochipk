@@ -52,7 +52,7 @@ export default function AdminUsersPage() {
     onError: (e) => toast.error(e.message),
   });
 
-  const { register, handleSubmit, setValue, watch } = useForm({ resolver: zodResolver(schema), defaultValues: { role: 'BRANCH_MANAGER' as const } });
+  const { register, handleSubmit, setValue, watch } = useForm<z.infer<typeof schema>>({ resolver: zodResolver(schema), defaultValues: { role: 'BRANCH_MANAGER' } });
 
   return (
     <div className="space-y-6">
@@ -95,7 +95,7 @@ export default function AdminUsersPage() {
           </thead>
           <tbody className="divide-y divide-white/5">
             {isLoading && <tr><td colSpan={4} className="text-center py-10 text-zinc-500">Loading…</td></tr>}
-            {data?.items.map((u) => (
+            {data?.items.map((u: any) => (
               <tr key={u.id} className="hover:bg-white/2">
                 <td className="px-4 py-3">
                   <div className="font-medium text-white text-xs">{u.name}</div>

@@ -93,7 +93,7 @@ export default function AccountPage() {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="font-serif text-3xl font-semibold tracking-tight mb-2">
-                Welcome, {user.firstName}
+                Welcome, {user.name}
               </h1>
               <p className="text-muted-foreground">{user.email}</p>
             </div>

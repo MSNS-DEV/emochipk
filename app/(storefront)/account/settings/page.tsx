@@ -39,10 +39,10 @@ export default function AccountSettingsPage() {
   const { user, isAuthenticated, isLoading, logout } = useAuth();
   
   const [profileData, setProfileData] = useState({
-    firstName: user?.firstName || '',
-    lastName: user?.lastName || '',
+    firstName: user?.name?.split(' ')[0] || '',
+    lastName: user?.name?.split(' ').slice(1).join(' ') || '',
     email: user?.email || '',
-    phone: user?.phone || '',
+    phone: (user as any)?.phone || '',
   });
 
   const [passwordData, setPasswordData] = useState({
@@ -165,7 +165,7 @@ export default function AccountSettingsPage() {
                       value={profileData.email}
                       onChange={(e) => setProfileData(prev => ({ ...prev, email: e.target.value }))}
                     />
-                    {user?.isEmailVerified && (
+                    {(user as any)?.isEmailVerified && (
                       <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1 text-green-600 text-xs">
                         <Check className="h-3 w-3" />
                         Verified
@@ -182,7 +182,7 @@ export default function AccountSettingsPage() {
                       value={profileData.phone}
                       onChange={(e) => setProfileData(prev => ({ ...prev, phone: e.target.value }))}
                     />
-                    {user?.isPhoneVerified && (
+                    {(user as any)?.isPhoneVerified && (
                       <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1 text-green-600 text-xs">
                         <Check className="h-3 w-3" />
                         Verified

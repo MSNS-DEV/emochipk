@@ -1,6 +1,6 @@
 'use client';
 
-import { useSession } from 'next-auth/react';
+import { useSession, signOut } from 'next-auth/react';
 import { createContext, useContext, type ReactNode } from 'react';
 
 interface AuthContextType {
@@ -13,6 +13,7 @@ interface AuthContextType {
   isLoading: boolean;
   isAuthenticated: boolean;
   hasRole: (roles: string | string[]) => boolean;
+  logout: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -47,6 +48,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isLoading: status === 'loading',
         isAuthenticated: !!user,
         hasRole,
+        logout: () => signOut({ callbackUrl: '/login' }),
       }}
     >
       {children}

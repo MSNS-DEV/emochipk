@@ -133,8 +133,8 @@ export default function OrderDetailPage() {
                   {order.items?.map((item: Record<string, unknown>) => (
                     <div key={item.id as string} className="flex gap-4">
                       <div className="h-20 w-20 bg-muted rounded-lg overflow-hidden flex-shrink-0">
-                        {(item.variant as Record<string, unknown>)?.product?.images?.[0]?.url ? (
-                          <Image src={(item.variant as Record<string, Record<string, Record<string, string>[]>>).product.images[0].url} alt="" width={80} height={80} className="object-cover h-full w-full" />
+                        {(item.variant as any)?.product?.images?.[0]?.url ? (
+                          <Image src={(item.variant as any).product.images[0].url} alt="" width={80} height={80} className="object-cover h-full w-full" />
                         ) : (
                           <div className="h-full w-full flex items-center justify-center"><Package className="h-8 w-8 text-muted-foreground/50" /></div>
                         )}
@@ -163,10 +163,10 @@ export default function OrderDetailPage() {
                 <div className="flex items-start gap-3">
                   <MapPin className="h-5 w-5 text-muted-foreground mt-0.5" />
                   <div>
-                    <p className="font-medium">{order.shippingFullName ?? order.user?.name}</p>
-                    <p className="text-muted-foreground">{order.shippingAddress}</p>
-                    <p className="text-muted-foreground">{order.shippingCity}, {order.shippingProvince}</p>
-                    <p className="text-muted-foreground">{order.shippingPhone}</p>
+                    <p className="font-medium">{order.shippingAddress?.fullName ?? order.user?.name}</p>
+                    <p className="text-muted-foreground">{order.shippingAddress?.street}</p>
+                    <p className="text-muted-foreground">{order.shippingAddress?.city}, {order.shippingAddress?.province}</p>
+                    <p className="text-muted-foreground">{order.shippingAddress?.phone}</p>
                   </div>
                 </div>
               </CardContent>
@@ -177,11 +177,11 @@ export default function OrderDetailPage() {
             <Card>
               <CardHeader><CardTitle className="text-lg">Order Summary</CardTitle></CardHeader>
               <CardContent className="space-y-3">
-                <div className="flex justify-between text-sm"><span className="text-muted-foreground">Subtotal</span><span>{formatPrice(Number(order.subtotalAmount ?? order.totalAmount))}</span></div>
+                <div className="flex justify-between text-sm"><span className="text-muted-foreground">Subtotal</span><span>{formatPrice(Number((order as any).subtotalAmount ?? order.totalAmount))}</span></div>
                 {Number(order.discountAmount) > 0 && (
                   <div className="flex justify-between text-sm text-green-600"><span>Discount</span><span>-{formatPrice(Number(order.discountAmount))}</span></div>
                 )}
-                <div className="flex justify-between text-sm"><span className="text-muted-foreground">Shipping</span><span>{Number(order.shippingAmount) === 0 ? 'Free' : formatPrice(Number(order.shippingAmount))}</span></div>
+                <div className="flex justify-between text-sm"><span className="text-muted-foreground">Shipping</span><span>{Number(order.shippingCost) === 0 ? 'Free' : formatPrice(Number(order.shippingCost))}</span></div>
                 <Separator />
                 <div className="flex justify-between font-semibold"><span>Total</span><span>{formatPrice(Number(order.totalAmount))}</span></div>
                 <Separator />
