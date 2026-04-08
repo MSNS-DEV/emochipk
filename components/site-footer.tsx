@@ -203,7 +203,7 @@ export function SiteFooter() {
               </span>
               <span className="flex items-center gap-2">
                 <Phone className="h-4 w-4" />
-                +92 300 1234567
+                +92 300 6314988
               </span>
             </div>
           </div>
