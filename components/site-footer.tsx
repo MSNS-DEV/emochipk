@@ -31,14 +31,14 @@ const footerLinks = {
 
 const stores = [
   {
-    name: 'Pasrur Store',
-    address: 'Main Bazaar, Near Clock Tower, Pasrur',
-    phone: '+92 300 1234567',
+    name: 'Executive Mochi | Service Super Shoes',
+    address: '842X+W5Q, GT Road Ghakhar, Pakistan',
+    phone: '+92 300 6314988',
     hours: 'Mon-Sat: 10am - 9pm',
   },
   {
-    name: 'Daska Store',
-    address: 'GT Road, Opposite City Park, Daska',
+    name: 'Executive Mochi Pasrur',
+    address: 'Main Bazar, Pasrur',
     phone: '+92 300 7654321',
     hours: 'Mon-Sat: 10am - 9pm',
   },
