@@ -58,7 +58,7 @@ export default function ContactPage() {
                   </div>
                   <div>
                     <h3 className="font-semibold mb-1">Email</h3>
-                    <p className="text-muted-foreground text-sm">info@executivemochi.pk</p>
+                    <p className="text-muted-foreground text-sm">servicesupershoes@gmail.com</p>
                     <p className="text-muted-foreground text-sm">support@executivemochi.pk</p>
                   </div>
                 </div>
@@ -131,7 +131,7 @@ export default function ContactPage() {
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="phone">Phone Number</Label>
-                      <Input id="phone" type="tel" placeholder="+92 300 1234567" />
+                      <Input id="phone" type="tel" placeholder="+92 300 6314988" />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="subject">Subject</Label>
