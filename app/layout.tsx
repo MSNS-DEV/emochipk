@@ -2,9 +2,11 @@ import './globals.css'
 import type { Metadata, Viewport } from 'next'
 import { Cormorant_Garamond, Inter } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/react'
+import { SpeedInsights } from '@vercel/speed-insights/next'
 import { Providers } from '@/app/providers'
 import { CartProvider } from '@/lib/cart-context'
 import { Toaster } from '@/components/ui/sonner'
+import { JsonLd } from '@/components/seo/JsonLd'
 
 const cormorant = Cormorant_Garamond({
   subsets: ['latin'],
@@ -20,6 +22,7 @@ const inter = Inter({
 })
 
 export const metadata: Metadata = {
+  metadataBase: new URL('https://executivemochi.pk'),
   title: {
     default: 'Executive Mochi - Luxury Handcrafted Footwear',
     template: '%s | Executive Mochi',
@@ -99,9 +102,31 @@ export default function RootLayout({
           <CartProvider>
             {children}
             <Toaster />
+            <JsonLd
+              data={{
+                "@context": "https://schema.org",
+                "@type": "Organization",
+                "name": "Executive Mochi",
+                "url": "https://executivemochi.pk",
+                "logo": "https://executivemochi.pk/logo.png",
+                "description": "Premium handcrafted leather shoes from Pakistan.",
+                "address": {
+                  "@type": "PostalAddress",
+                  "addressLocality": "Pasrur",
+                  "addressRegion": "Sialkot",
+                  "addressCountry": "Pakistan"
+                },
+                "contactPoint": {
+                  "@type": "ContactPoint",
+                  "telephone": "+92-XXX-XXXXXXX",
+                  "contactType": "customer service"
+                }
+              }}
+            />
           </CartProvider>
         </Providers>
         <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   )

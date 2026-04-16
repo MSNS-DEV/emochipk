@@ -8,6 +8,7 @@ import { db } from '@/server/db';
 import { ProductDetails } from './product-details';
 import { ProductCard } from '@/components/product-card';
 import type { Metadata } from 'next';
+import { JsonLd } from '@/components/seo/JsonLd';
 
 interface ProductPageProps {
   params: Promise<{ slug: string }>;
@@ -51,10 +52,34 @@ export default async function ProductPage({ params }: ProductPageProps) {
     category: product.category as never,
     page: 1, pageSize: 5,
   });
-  const relatedProducts = related.items.filter((p) => p.id !== product.id).slice(0, 4);
+  const relatedProducts = related.items.filter((p: any) => p.id !== product.id).slice(0, 4);
 
   return (
     <div className="min-h-screen">
+      {/* Structured Data */}
+      <JsonLd
+        data={{
+          "@context": "https://schema.org",
+          "@type": "Product",
+          "name": product.name,
+          "image": product.images.map((img: any) => img.url),
+          "description": product.description,
+          "sku": product.articleNumber,
+          "brand": {
+            "@type": "Brand",
+            "name": "Executive Mochi"
+          },
+          "offers": {
+            "@type": "Offer",
+            "url": `https://executivemochi.pk/product/${product.slug}`,
+            "priceCurrency": "PKR",
+            "price": product.salePrice ?? product.basePrice,
+            "availability": "https://schema.org/InStock",
+            "itemCondition": "https://schema.org/NewCondition"
+          }
+        }}
+      />
+
       {/* Breadcrumb */}
       <div className="bg-muted/40 py-3 border-b">
         <div className="container mx-auto px-4">
@@ -85,7 +110,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
           <div className="container mx-auto px-4">
             <h2 className="font-serif text-2xl sm:text-3xl font-bold tracking-tight mb-8">You May Also Like</h2>
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
-              {relatedProducts.map((p) => (
+              {relatedProducts.map((p: any) => (
                 <ProductCard key={p.id} product={p as never} />
               ))}
             </div>
