@@ -6,14 +6,14 @@ import { Providers } from '@/app/providers'
 import { CartProvider } from '@/lib/cart-context'
 import { Toaster } from '@/components/ui/sonner'
 
-const cormorant = Cormorant_Garamond({ 
+const cormorant = Cormorant_Garamond({
   subsets: ['latin'],
   weight: ['300', '400', '500', '600', '700'],
   variable: '--font-cormorant',
   display: 'swap',
 })
 
-const inter = Inter({ 
+const inter = Inter({
   subsets: ['latin'],
   variable: '--font-inter',
   display: 'swap',
@@ -25,7 +25,36 @@ export const metadata: Metadata = {
     template: '%s | Executive Mochi',
   },
   description: 'Discover premium handcrafted leather shoes from Pakistan. Executive Mochi offers luxury formal shoes, boots, loafers, and traditional Peshawaris crafted by master artisans.',
-  keywords: ['luxury shoes', 'handcrafted footwear', 'Pakistani shoes', 'leather shoes', 'formal shoes', 'Peshawari', 'Executive Mochi'],
+  keywords: [
+    'Executive Mochi',
+    'Executive Mochi Pakistan',
+    'super shoes',
+    'servis',
+    'bata',
+    'executive',
+    'luxury shoes',
+    'handcrafted footwear',
+    'premium leather shoes',
+    'handmade shoes',
+    'formal shoes',
+    'loafers',
+    'leather boots',
+    'oxfords',
+    'brogues',
+    'Peshawari chappal',
+    'Kaptaan chappal',
+    'traditional Pakistani footwear',
+    'pure leather',
+    'bespoke footwear',
+    'mens premium footwear',
+    'Pakistani shoes',
+    'executive shoes',
+    'servis shoes',
+    'bata shoes',
+    'super shoes',
+    'mochi shoes',
+    'handmade in Pakistan'
+  ],
   authors: [{ name: 'Executive Mochi' }],
   creator: 'Executive Mochi',
   publisher: 'Executive Mochi',
@@ -44,6 +73,9 @@ export const metadata: Metadata = {
     description: 'Discover premium handcrafted leather shoes from Pakistan.',
   },
   robots: { index: true, follow: true },
+  verification: {
+    google: 'm11vzPasgLl-12Xr6HDhP0jGCr3NFijjjUK-ryBdUSo',
+  },
 }
 
 export const viewport: Viewport = {
