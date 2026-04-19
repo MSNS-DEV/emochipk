@@ -1,5 +1,7 @@
 import { MetadataRoute } from 'next'
 import { db } from '@/server/db'
+type ProductCategory = 'MEN' | 'WOMEN' | 'KIDS'
+type Style = 'LOAFERS' | 'OXFORD' | 'MOCCASINS' | 'PESHAWARI' | 'SANDALS' | 'SNEAKERS'
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = 'https://executivemochi.pk'
@@ -36,21 +38,30 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   }))
 
   // Product routes
-  const productRoutes = products.map((product: any) => ({
+  const productRoutes = (products as any[]).map((product) => ({
     url: `${baseUrl}/product/${product.slug}`,
     lastModified: product.updatedAt,
     changeFrequency: 'daily' as const,
     priority: 0.7,
   }))
 
-  // Category routes (based on the ProductCategory enum)
-  const categories = ['MEN', 'WOMEN', 'KIDS']
+  // Category routes (Canonical query-param routes)
+  const categories: ProductCategory[] = ['MEN', 'WOMEN', 'KIDS']
   const categoryRoutes = categories.map((category) => ({
-    url: `${baseUrl}/shop/${category.toLowerCase()}`,
+    url: `${baseUrl}/shop?category=${category}`,
     lastModified: new Date(),
     changeFrequency: 'weekly' as const,
     priority: 0.8,
   }))
 
-  return [...staticRoutes, ...categoryRoutes, ...productRoutes]
+  // Style routes (Key landing segments)
+  const styles: Style[] = ['LOAFERS', 'OXFORD', 'MOCCASINS', 'PESHAWARI', 'SANDALS', 'SNEAKERS']
+  const styleRoutes = styles.map((style) => ({
+    url: `${baseUrl}/shop?style=${style}`,
+    lastModified: new Date(),
+    changeFrequency: 'weekly' as const,
+    priority: 0.8,
+  }))
+
+  return [...staticRoutes, ...categoryRoutes, ...styleRoutes, ...productRoutes]
 }

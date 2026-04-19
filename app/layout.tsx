@@ -105,22 +105,44 @@ export default function RootLayout({
             <JsonLd
               data={{
                 "@context": "https://schema.org",
-                "@type": "Organization",
-                "name": "Executive Mochi",
-                "url": "https://executivemochi.pk",
-                "logo": "https://executivemochi.pk/logo.png",
-                "description": "Premium handcrafted leather shoes from Pakistan.",
-                "address": {
-                  "@type": "PostalAddress",
-                  "addressLocality": "Pasrur",
-                  "addressRegion": "Sialkot",
-                  "addressCountry": "Pakistan"
-                },
-                "contactPoint": {
-                  "@type": "ContactPoint",
-                  "telephone": "+92-XXX-XXXXXXX",
-                  "contactType": "customer service"
-                }
+                "@graph": [
+                  {
+                    "@type": "Organization",
+                    "@id": "https://executivemochi.pk/#organization",
+                    "name": "Executive Mochi",
+                    "url": "https://executivemochi.pk",
+                    "logo": {
+                      "@type": "ImageObject",
+                      "url": "https://executivemochi.pk/placeholder-logo.png",
+                      "width": 112,
+                      "height": 112
+                    },
+                    "description": "Premium handcrafted leather shoes from Pakistan.",
+                    "address": {
+                      "@type": "PostalAddress",
+                      "addressLocality": "Pasrur",
+                      "addressRegion": "Sialkot",
+                      "addressCountry": "Pakistan"
+                    },
+                    "contactPoint": {
+                      "@type": "ContactPoint",
+                      "telephone": "+92-XXX-XXXXXXX",
+                      "contactType": "customer service"
+                    }
+                  },
+                  {
+                    "@type": "WebSite",
+                    "@id": "https://executivemochi.pk/#website",
+                    "url": "https://executivemochi.pk",
+                    "name": "Executive Mochi",
+                    "publisher": { "@id": "https://executivemochi.pk/#organization" },
+                    "potentialAction": {
+                      "@type": "SearchAction",
+                      "target": "https://executivemochi.pk/shop?q={search_term_string}",
+                      "query-input": "required name=search_term_string"
+                    }
+                  }
+                ]
               }}
             />
           </CartProvider>

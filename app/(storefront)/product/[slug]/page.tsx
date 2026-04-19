@@ -60,23 +60,58 @@ export default async function ProductPage({ params }: ProductPageProps) {
       <JsonLd
         data={{
           "@context": "https://schema.org",
-          "@type": "Product",
-          "name": product.name,
-          "image": product.images.map((img: any) => img.url),
-          "description": product.description,
-          "sku": product.articleNumber,
-          "brand": {
-            "@type": "Brand",
-            "name": "Executive Mochi"
-          },
-          "offers": {
-            "@type": "Offer",
-            "url": `https://executivemochi.pk/product/${product.slug}`,
-            "priceCurrency": "PKR",
-            "price": product.salePrice ?? product.basePrice,
-            "availability": "https://schema.org/InStock",
-            "itemCondition": "https://schema.org/NewCondition"
-          }
+          "@graph": [
+            {
+              "@type": "Product",
+              "name": product.name,
+              "image": product.images.map((img: any) => img.url),
+              "description": product.description,
+              "sku": product.articleNumber,
+              "mpn": product.articleNumber,
+              "brand": {
+                "@type": "Brand",
+                "name": "Executive Mochi"
+              },
+              "offers": {
+                "@type": "Offer",
+                "url": `https://executivemochi.pk/product/${product.slug}`,
+                "priceCurrency": "PKR",
+                "price": product.salePrice ?? product.basePrice,
+                "availability": product.isActive ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
+                "itemCondition": "https://schema.org/NewCondition",
+                "priceValidUntil": new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().split('T')[0]
+              }
+            },
+            {
+              "@type": "BreadcrumbList",
+              "itemListElement": [
+                {
+                  "@type": "ListItem",
+                  "position": 1,
+                  "name": "Home",
+                  "item": "https://executivemochi.pk"
+                },
+                {
+                  "@type": "ListItem",
+                  "position": 2,
+                  "name": "Shop",
+                  "item": "https://executivemochi.pk/shop"
+                },
+                {
+                  "@type": "ListItem",
+                  "position": 3,
+                  "name": genderLabel,
+                  "item": `https://executivemochi.pk/shop/${product.category.toLowerCase()}`
+                },
+                {
+                  "@type": "ListItem",
+                  "position": 4,
+                  "name": product.name,
+                  "item": `https://executivemochi.pk/product/${product.slug}`
+                }
+              ]
+            }
+          ]
         }}
       />
 

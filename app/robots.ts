@@ -5,7 +5,16 @@ export default function robots(): MetadataRoute.Robots {
     rules: {
       userAgent: '*',
       allow: '/',
-      disallow: ['/api/', '/admin/', '/account/', '/checkout/', '/order-success/'],
+      disallow: [
+        '/api/',
+        '/admin/',
+        '/account/',
+        '/checkout/',
+        '/order-success/',
+        '/cart/',
+        '/wishlist/',
+        '/search/',
+      ],
     },
     sitemap: 'https://executivemochi.pk/sitemap.xml',
   }
