@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import Image from 'next/image';
 import { MapPin, Phone, Mail, Clock, Facebook, Instagram } from 'lucide-react';
 
 const footerLinks = {
@@ -79,7 +80,14 @@ export function SiteFooter() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-8 lg:gap-12">
           {/* Brand Column */}
           <div className="lg:col-span-2">
-            <Link href="/" className="inline-block">
+            <Link href="/" className="flex items-center gap-2 group mb-4">
+              <Image
+                src="/logo.ico"
+                alt="Executive Mochi Logo"
+                width={32}
+                height={32}
+                className="w-8 h-8 object-contain transition-transform group-hover:scale-105"
+              />
               <span className="font-serif text-2xl font-semibold tracking-tight">
                 Executive Mochi
               </span>

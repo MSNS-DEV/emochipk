@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { useState } from 'react';
 import { signOut } from 'next-auth/react';
 import { useAuth } from '@/lib/auth-context';
@@ -205,7 +206,14 @@ export function SiteHeader() {
           </Sheet>
 
           {/* Logo */}
-          <Link href="/" className="flex items-center">
+          <Link href="/" className="flex items-center gap-2 group">
+            <Image
+              src="/logo.ico"
+              alt="Executive Mochi Logo"
+              width={40}
+              height={40}
+              className="w-8 h-8 sm:w-10 sm:h-10 object-contain transition-transform group-hover:scale-105"
+            />
             <span className="font-serif text-xl sm:text-2xl lg:text-3xl font-semibold tracking-tight text-foreground">
               Executive Mochi
             </span>

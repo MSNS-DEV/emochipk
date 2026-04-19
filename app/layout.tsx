@@ -79,6 +79,10 @@ export const metadata: Metadata = {
   verification: {
     google: 'm11vzPasgLl-12Xr6HDhP0jGCr3NFijjjUK-ryBdUSo',
   },
+  icons: {
+    icon: '/logo.ico',
+    apple: '/logo.ico',
+  },
 }
 
 export const viewport: Viewport = {
@@ -113,9 +117,9 @@ export default function RootLayout({
                     "url": "https://executivemochi.pk",
                     "logo": {
                       "@type": "ImageObject",
-                      "url": "https://executivemochi.pk/placeholder-logo.png",
-                      "width": 112,
-                      "height": 112
+                      "url": "https://executivemochi.pk/logo.ico",
+                      "width": 512,
+                      "height": 512
                     },
                     "description": "Premium handcrafted leather shoes from Pakistan.",
                     "address": {
