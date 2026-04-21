@@ -20,17 +20,17 @@ interface ProductCardProps {
 }
 
 export function ProductCard({ product, className }: ProductCardProps) {
-  const primaryImage  = product.images.find((img) => img.isPrimary) ?? product.images[0];
-  const discountPct   = getDiscountPercent(product);
+  const primaryImage = product.images.find((img) => img.isPrimary) ?? product.images[0];
+  const discountPct = getDiscountPercent(product);
   const effectivePrice = getEffectivePrice(product);
-  const colors        = getProductColors(product).slice(0, 4);
+  const colors = getProductColors(product).slice(0, 4);
 
   const styleLabelMap: Record<string, string> = {
-    SANDALS:   'Chappal / Sandals',
+    SANDALS: 'Chappal / Sandals',
     PESHAWARI: 'Peshawari',
-    SNEAKERS:  'Jogger / Sneakers',
-    OXFORD:    'Formal Shoe',
-    LOAFERS:   'Loafer',
+    SNEAKERS: 'Jogger / Sneakers',
+    OXFORD: 'Formal Shoe',
+    LOAFERS: 'Loafer',
     MOCCASINS: 'Moccasin',
   };
 
@@ -51,10 +51,10 @@ export function ProductCard({ product, className }: ProductCardProps) {
             // Placeholder when no image is uploaded yet
             <div className="flex h-full flex-col items-center justify-center gap-3 bg-gradient-to-br from-stone-100 to-stone-200 dark:from-stone-800 dark:to-stone-900">
               <span className="text-5xl">
-                {product.style === 'SANDALS'   ? '🩴' :
-                 product.style === 'PESHAWARI' ? '🥿' :
-                 product.style === 'SNEAKERS'  ? '👟' :
-                 '👞'}
+                {product.style === 'SANDALS' ? '🩴' :
+                  product.style === 'PESHAWARI' ? '🥿' :
+                    product.style === 'SNEAKERS' ? '👟' :
+                      '👞'}
               </span>
               <span className="text-xs text-muted-foreground font-medium">{product.articleNumber}</span>
             </div>
