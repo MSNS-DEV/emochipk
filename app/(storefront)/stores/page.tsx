@@ -4,33 +4,33 @@ import { MapPin, Phone, Mail, Clock, Navigation } from "lucide-react"
 const stores = [
   {
     id: 1,
-    name: "Executive Mochi – Pasrur Flagship",
+    name: "Executive Mochi | Super Shoes Ghakhar",
     badge: "Flagship Store",
-    address: "Main Bazaar, Near Clock Tower, Pasrur, Punjab",
-    phone: "+92 52 6543210",
-    mobile: "+92 300 1234567",
-    email: "pasrur@executivemochi.pk",
+    address: "GT Rd, Muhallah Shah Jamal Ghakhar, Pakistan",
+    phone: "+92 310 1601499",
+    mobile: "+92 300 6314988",
+    email: "[EMAIL_ADDRESS]",
     hours: [
-      { day: "Monday – Saturday", time: "10:00 AM – 9:00 PM" },
+      { day: "Monday – Saturday", time: "10:00 AM – 10:00 PM" },
       { day: "Sunday", time: "12:00 PM – 6:00 PM" },
     ],
     features: ["Full Collection Available", "Custom Fitting Service", "Master Craftsman On-Site", "Gift Wrapping", "Repair Services"],
-    mapQuery: "Main+Bazaar+Clock+Tower+Pasrur+Punjab+Pakistan",
+    mapQuery: "https://maps.app.goo.gl/WZSPCXkbSfxy6MSJ7",
   },
   {
     id: 2,
-    name: "Executive Mochi – Daska",
+    name: "Executive Mochi | Servis Super Shoes",
     badge: "Branch Store",
-    address: "Railway Road, Opposite City Park, Daska, Punjab",
-    phone: "+92 52 6789012",
-    mobile: "+92 300 7654321",
-    email: "daska@executivemochi.pk",
+    address: "7M64+VM3, Kutchery Road, Pasrūr, Pakistan",
+    phone: "+92 310 1601499",
+    mobile: "+92 300 6314988",
+    email: "[EMAIL_ADDRESS]",
     hours: [
-      { day: "Monday – Saturday", time: "10:00 AM – 9:00 PM" },
+      { day: "Monday – Saturday", time: "10:00 AM – 10:00 PM" },
       { day: "Sunday", time: "Closed" },
     ],
     features: ["Full Collection Available", "Custom Fitting Service", "Gift Wrapping"],
-    mapQuery: "Railway+Road+City+Park+Daska+Punjab+Pakistan",
+    mapQuery: "https://maps.app.goo.gl/eBgcPazpL3tM4JDb9",
   },
 ]
 
@@ -66,7 +66,7 @@ export default function StoresPage() {
                     <p className="font-medium text-sm">Address</p>
                     <p className="text-muted-foreground text-sm mt-0.5">{store.address}</p>
                     <a
-                      href={`https://maps.google.com/maps?q=${store.mapQuery}`}
+                      href={store.mapQuery}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="inline-flex items-center gap-1 text-xs text-primary hover:underline mt-1"

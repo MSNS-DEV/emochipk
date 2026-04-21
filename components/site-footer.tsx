@@ -35,13 +35,13 @@ const stores = [
     name: 'Executive Mochi | Service Super Shoes',
     address: '842X+W5Q, GT Road Ghakhar, Pakistan',
     phone: '+92 300 6314988',
-    hours: 'Mon-Sat: 10am - 9pm',
+    hours: 'Mon-Sat: 10am - 10pm',
   },
   {
     name: 'Executive Mochi Pasrur',
-    address: 'Main Bazar, Pasrur',
-    phone: '+92 300 7654321',
-    hours: 'Mon-Sat: 10am - 9pm',
+    address: 'Sialkot  Road, Timber Market, Pasrur, Punjab',
+    phone: '+92 310 1601499',
+    hours: 'Mon-Sat: 10am - 10pm',
   },
 ];
 
@@ -93,12 +93,12 @@ export function SiteFooter() {
               </span>
             </Link>
             <p className="mt-4 text-sidebar-foreground/70 max-w-sm leading-relaxed">
-              Crafting luxury footwear since 1985. Each pair tells a story of heritage, 
+              Crafting luxury footwear since 1985. Each pair tells a story of heritage,
               craftsmanship, and timeless elegance from the heart of Pakistan.
             </p>
             <div className="mt-6 flex items-center gap-4">
               <a
-                href="https://facebook.com"
+                href="https://www.facebook.com/share/1Di9T5ucH7/?mibextid=wwXIfr"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="p-2 rounded-full bg-sidebar-accent hover:bg-sidebar-accent/80 transition-colors"
@@ -107,7 +107,7 @@ export function SiteFooter() {
                 <span className="sr-only">Facebook</span>
               </a>
               <a
-                href="https://instagram.com"
+                href="https://www.instagram.com/officialsupershoes?igsh=MWI3NnQ1YTEycmZ4aQ%3D%3D&utm_source=qr"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="p-2 rounded-full bg-sidebar-accent hover:bg-sidebar-accent/80 transition-colors"
