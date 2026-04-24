@@ -80,6 +80,9 @@ export const metadata: Metadata = {
   verification: {
     google: 'm11vzPasgLl-12Xr6HDhP0jGCr3NFijjjUK-ryBdUSo',
   },
+  other: {
+    'google-adsense-account': 'ca-pub-1351871288722699',
+  },
   icons: {
     icon: '/logo.ico',
     apple: '/logo.ico',
