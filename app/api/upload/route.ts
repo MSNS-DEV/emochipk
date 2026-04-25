@@ -19,10 +19,10 @@ export async function POST(request: Request): Promise<NextResponse> {
   }
 
   // Validate file size (max 4.5MB for Vercel Blob free tier)
-  const maxSize = 4.5 * 1024 * 1024;
+  const maxSize = 5 * 1024 * 1024;
   if (file.size > maxSize) {
     return NextResponse.json(
-      { error: 'File too large. Maximum size is 4.5MB.' },
+      { error: 'File too large. Maximum size is 5MB.' },
       { status: 400 }
     );
   }
