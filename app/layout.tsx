@@ -31,6 +31,7 @@ export const metadata: Metadata = {
   description: 'Discover premium handcrafted leather shoes from Pakistan. Executive Mochi offers luxury formal shoes, boots, loafers, and traditional Peshawaris crafted by master artisans.',
   keywords: [
     'Executive Mochi',
+    'executive mochi shoes',
     'Executive Mochi Pakistan',
     'super shoes',
     'servis',
