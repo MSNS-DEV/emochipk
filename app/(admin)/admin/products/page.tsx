@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -19,7 +19,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog';
 import {
-  Plus, Search, Edit, Trash2, Package, Eye, EyeOff, ImagePlus, X,
+  Plus, Search, Edit, Trash2, Package, Eye, EyeOff, ImagePlus, X, Upload, Loader2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -75,30 +75,185 @@ const FormSchema = z.object({
 
 type FormValues = z.infer<typeof FormSchema>;
 
-// ─── Image URL Form ───────────────────────────────────────────────────────────
+// ─── Image Manager (Upload + URL) ─────────────────────────────────────────────
 
-function ImageUrlInput({ productId, onAdded }: { productId: string; onAdded: () => void }) {
+function ImageManager({ productId, onAdded }: { productId: string; onAdded: () => void }) {
   const [url, setUrl] = useState('');
   const [isPrimary, setIsPrimary] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [dragActive, setDragActive] = useState(false);
+  const [previews, setPreviews] = useState<{ file: File; preview: string }[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const addImage = api.product.addImage.useMutation({
     onSuccess: () => { setUrl(''); onAdded(); toast.success('Image added'); },
     onError: (e) => toast.error(e.message),
   });
 
+  const uploadFiles = useCallback(async (files: File[]) => {
+    const validTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/avif'];
+    const maxSize = 4.5 * 1024 * 1024;
+
+    const validFiles = files.filter(f => {
+      if (!validTypes.includes(f.type)) {
+        toast.error(`${f.name}: Invalid type. Use JPEG, PNG, WebP, or AVIF.`);
+        return false;
+      }
+      if (f.size > maxSize) {
+        toast.error(`${f.name}: File too large (max 4.5MB).`);
+        return false;
+      }
+      return true;
+    });
+
+    if (validFiles.length === 0) return;
+
+    setUploading(true);
+    let successCount = 0;
+
+    for (const file of validFiles) {
+      try {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const res = await fetch('/api/upload', { method: 'POST', body: formData });
+        const data = await res.json();
+
+        if (!res.ok) {
+          toast.error(`${file.name}: ${data.error}`);
+          continue;
+        }
+
+        // Add to product via tRPC
+        await addImage.mutateAsync({
+          productId,
+          url: data.url,
+          isPrimary: isPrimary && successCount === 0,
+          sortOrder: 0,
+        });
+        successCount++;
+      } catch {
+        toast.error(`${file.name}: Upload failed`);
+      }
+    }
+
+    if (successCount > 0) {
+      toast.success(`${successCount} image${successCount > 1 ? 's' : ''} uploaded!`);
+      onAdded();
+    }
+
+    setPreviews([]);
+    setUploading(false);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  }, [productId, isPrimary, addImage, onAdded]);
+
+  const handleDrag = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(e.type === 'dragenter' || e.type === 'dragover');
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+    const files = Array.from(e.dataTransfer.files);
+    if (files.length > 0) {
+      setPreviews(files.map(f => ({ file: f, preview: URL.createObjectURL(f) })));
+      void uploadFiles(files);
+    }
+  }, [uploadFiles]);
+
+  const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    if (files.length > 0) {
+      setPreviews(files.map(f => ({ file: f, preview: URL.createObjectURL(f) })));
+      void uploadFiles(files);
+    }
+  }, [uploadFiles]);
+
   return (
-    <div className="flex gap-2 items-end">
-      <div className="flex-1">
-        <Input placeholder="https://example.com/image.jpg" value={url}
-          onChange={(e) => setUrl(e.target.value)} className="bg-zinc-800 border-white/10" />
+    <div className="space-y-4">
+      {/* Drag & Drop Zone */}
+      <div
+        onDragEnter={handleDrag}
+        onDragLeave={handleDrag}
+        onDragOver={handleDrag}
+        onDrop={handleDrop}
+        onClick={() => !uploading && fileInputRef.current?.click()}
+        className={`relative border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-all duration-200
+          ${dragActive
+            ? 'border-amber-500 bg-amber-500/10'
+            : 'border-white/10 hover:border-white/25 hover:bg-white/[0.02]'
+          }
+          ${uploading ? 'pointer-events-none opacity-60' : ''}`}
+      >
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp,image/avif"
+          multiple
+          onChange={handleFileSelect}
+          className="hidden"
+        />
+        {uploading ? (
+          <div className="flex flex-col items-center gap-2">
+            <Loader2 className="h-8 w-8 text-amber-500 animate-spin" />
+            <p className="text-sm text-amber-400">Uploading…</p>
+          </div>
+        ) : (
+          <div className="flex flex-col items-center gap-2">
+            <div className="w-12 h-12 rounded-full bg-amber-500/10 flex items-center justify-center">
+              <Upload className="h-5 w-5 text-amber-500" />
+            </div>
+            <div>
+              <p className="text-sm text-white font-medium">Click to upload or drag & drop</p>
+              <p className="text-xs text-zinc-500 mt-0.5">JPEG, PNG, WebP, AVIF — Max 4.5MB each</p>
+            </div>
+          </div>
+        )}
       </div>
-      <label className="flex items-center gap-1 text-xs text-zinc-400 whitespace-nowrap">
+
+      {/* Preview thumbnails */}
+      {previews.length > 0 && (
+        <div className="flex gap-2 flex-wrap">
+          {previews.map((p, i) => (
+            <div key={i} className="w-14 h-14 rounded-lg overflow-hidden border border-white/10 relative">
+              <img src={p.preview} alt="" className="w-full h-full object-cover" />
+              {uploading && (
+                <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                  <Loader2 className="h-4 w-4 text-white animate-spin" />
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Primary checkbox */}
+      <label className="flex items-center gap-2 text-xs text-zinc-400">
         <input type="checkbox" checked={isPrimary} onChange={(e) => setIsPrimary(e.target.checked)} className="accent-amber-500" />
-        Primary
+        Set as primary image
       </label>
-      <Button size="sm" onClick={() => addImage.mutate({ productId, url, isPrimary, sortOrder: 0 })}
-        disabled={!url || addImage.isPending}>
-        <Plus className="h-3 w-3 mr-1" /> Add
-      </Button>
+
+      {/* Divider */}
+      <div className="flex items-center gap-3">
+        <div className="flex-1 h-px bg-white/10" />
+        <span className="text-xs text-zinc-600">or add by URL</span>
+        <div className="flex-1 h-px bg-white/10" />
+      </div>
+
+      {/* URL Input */}
+      <div className="flex gap-2 items-end">
+        <div className="flex-1">
+          <Input placeholder="https://example.com/image.jpg" value={url}
+            onChange={(e) => setUrl(e.target.value)} className="bg-zinc-800 border-white/10" />
+        </div>
+        <Button size="sm" onClick={() => addImage.mutate({ productId, url, isPrimary, sortOrder: 0 })}
+          disabled={!url || addImage.isPending}>
+          <Plus className="h-3 w-3 mr-1" /> Add
+        </Button>
+      </div>
     </div>
   );
 }
@@ -425,11 +580,7 @@ export default function AdminProductsPage() {
             <DialogTitle>Manage Product Images</DialogTitle>
           </DialogHeader>
           {showImageDialog && (
-            <div className="space-y-4">
-              <p className="text-xs text-zinc-400">Add image URLs for this product. Admins and managers can add images here.</p>
-              <ImageUrlInput productId={showImageDialog} onAdded={() => void utils.product.adminList.invalidate()} />
-              <p className="text-xs text-zinc-600">Supported: direct image URLs (jpg, webp, png)</p>
-            </div>
+            <ImageManager productId={showImageDialog} onAdded={() => void utils.product.adminList.invalidate()} />
           )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowImageDialog(null)} className="border-white/10 text-zinc-400 bg-transparent">
