@@ -1,5 +1,6 @@
-import { put } from '@vercel/blob';
+import { PutObjectCommand } from '@aws-sdk/client-s3';
 import { NextResponse } from 'next/server';
+import { s3, S3_BUCKET, getPublicUrl } from '@/lib/s3';
 
 export async function POST(request: Request): Promise<NextResponse> {
   const formData = await request.formData();
@@ -18,7 +19,7 @@ export async function POST(request: Request): Promise<NextResponse> {
     );
   }
 
-  // Validate file size (max 4.5MB for Vercel Blob free tier)
+  // Validate file size (max 5MB)
   const maxSize = 5 * 1024 * 1024;
   if (file.size > maxSize) {
     return NextResponse.json(
@@ -28,11 +29,21 @@ export async function POST(request: Request): Promise<NextResponse> {
   }
 
   try {
-    const blob = await put(`products/${Date.now()}-${file.name}`, file, {
-      access: 'public',
-    });
+    const key = `products/${Date.now()}-${file.name}`;
+    const buffer = Buffer.from(await file.arrayBuffer());
 
-    return NextResponse.json({ url: blob.url });
+    await s3.send(
+      new PutObjectCommand({
+        Bucket: S3_BUCKET,
+        Key: key,
+        Body: buffer,
+        ContentType: file.type,
+        ACL: 'public-read',
+      })
+    );
+
+    const url = getPublicUrl(key);
+    return NextResponse.json({ url });
   } catch (error) {
     console.error('Upload error:', error);
     return NextResponse.json(

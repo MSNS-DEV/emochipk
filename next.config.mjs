@@ -5,7 +5,7 @@ const nextConfig = {
     remotePatterns: [
       {
         protocol: 'https',
-        hostname: 'vqz56f5g7q.ufs.sh.global.cloud',
+        hostname: 't3.storageapi.dev',
       },
     ],
   },
