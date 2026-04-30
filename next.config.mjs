@@ -10,16 +10,6 @@ const nextConfig = {
     ],
   },
 
-  async redirects() {
-    return [
-      {
-        source: '/:path*',
-        destination: 'https://www.executivemochi.pk/:path*',
-        permanent: true,
-        has: [{ type: 'host', value: 'executivemochi.pk' }],
-      },
-    ]
-  },
 }
 
 export default nextConfig
