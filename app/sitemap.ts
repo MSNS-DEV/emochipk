@@ -1,5 +1,7 @@
 import { MetadataRoute } from 'next'
 import { db } from '@/server/db'
+
+export const dynamic = 'force-dynamic'
 type ProductCategory = 'MEN' | 'WOMEN' | 'KIDS'
 type Style = 'LOAFERS' | 'OXFORD' | 'MOCCASINS' | 'PESHAWARI' | 'SANDALS' | 'SNEAKERS'
 
