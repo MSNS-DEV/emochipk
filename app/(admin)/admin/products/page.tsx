@@ -192,6 +192,7 @@ function ImageManager({ productId, onAdded }: { productId: string; onAdded: () =
         <input
           ref={fileInputRef}
           type="file"
+          title="Upload product images"
           accept="image/jpeg,image/png,image/webp,image/avif"
           multiple
           onChange={handleFileSelect}
