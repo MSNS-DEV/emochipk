@@ -1,6 +1,6 @@
 import { PutObjectCommand } from '@aws-sdk/client-s3';
 import { NextResponse } from 'next/server';
-import { s3, S3_BUCKET, getPublicUrl } from '@/lib/s3';
+import { getS3Client, getS3Bucket, getPublicUrl } from '@/lib/s3';
 
 export async function POST(request: Request): Promise<NextResponse> {
   const formData = await request.formData();
@@ -19,26 +19,27 @@ export async function POST(request: Request): Promise<NextResponse> {
     );
   }
 
-  // Validate file size (max 5MB)
-  const maxSize = 5 * 1024 * 1024;
+  // Validate file size (max 10MB)
+  const maxSize = 10 * 1024 * 1024;
   if (file.size > maxSize) {
     return NextResponse.json(
-      { error: 'File too large. Maximum size is 5MB.' },
+      { error: 'File too large. Maximum size is 10MB.' },
       { status: 400 }
     );
   }
 
   try {
+    const s3 = getS3Client();
+    const bucket = getS3Bucket();
     const key = `products/${Date.now()}-${file.name}`;
     const buffer = Buffer.from(await file.arrayBuffer());
 
     await s3.send(
       new PutObjectCommand({
-        Bucket: S3_BUCKET,
+        Bucket: bucket,
         Key: key,
         Body: buffer,
         ContentType: file.type,
-        ACL: 'public-read',
       })
     );
 
@@ -46,8 +47,9 @@ export async function POST(request: Request): Promise<NextResponse> {
     return NextResponse.json({ url });
   } catch (error) {
     console.error('Upload error:', error);
+    const message = error instanceof Error ? error.message : 'Failed to upload file';
     return NextResponse.json(
-      { error: 'Failed to upload file' },
+      { error: message },
       { status: 500 }
     );
   }

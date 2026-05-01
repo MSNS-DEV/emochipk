@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useMemo } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -20,6 +20,7 @@ import {
 } from '@/components/ui/dialog';
 import {
   Plus, Search, Edit, Trash2, Package, Eye, EyeOff, ImagePlus, X, Upload, Loader2,
+  ChevronLeft, ChevronRight, Star, Tag, Layers, RefreshCw,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -258,6 +259,23 @@ function ImageManager({ productId, onAdded }: { productId: string; onAdded: () =
   );
 }
 
+// ─── Stat Card ────────────────────────────────────────────────────────────────
+function ProductStatCard({ icon: Icon, label, value, accent }: {
+  icon: React.ElementType; label: string; value: number | string; accent: string;
+}) {
+  return (
+    <div className="bg-zinc-900 border border-white/5 rounded-xl p-4 flex items-center gap-3">
+      <div className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 ${accent}`}>
+        <Icon className="h-4 w-4" />
+      </div>
+      <div>
+        <div className="text-lg font-bold text-white">{value}</div>
+        <div className="text-xs text-zinc-500">{label}</div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function AdminProductsPage() {
@@ -266,9 +284,26 @@ export default function AdminProductsPage() {
   const [editId, setEditId] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [showImageDialog, setShowImageDialog] = useState<string | null>(null);
+  const [categoryFilter, setCategoryFilter] = useState<string>('ALL');
 
   const utils = api.useUtils();
-  const { data, isLoading } = api.product.adminList.useQuery({ page, pageSize: 20, search: search || undefined });
+  const { data, isLoading } = api.product.adminList.useQuery({
+    page, pageSize: 20,
+    search: search || undefined,
+    category: categoryFilter !== 'ALL' ? categoryFilter as 'MEN' | 'WOMEN' | 'KIDS' : undefined,
+  });
+
+  // Stats
+  const stats = useMemo(() => {
+    if (!data) return { total: 0, active: 0, featured: 0, onSale: 0 };
+    const items = data.items;
+    return {
+      total: data.total,
+      active: items.filter(p => p.isActive).length,
+      featured: items.filter(p => p.isFeatured).length,
+      onSale: items.filter(p => p.salePrice).length,
+    };
+  }, [data]);
 
   const createMutation = api.product.create.useMutation({
     onSuccess: () => { toast.success('Product created!'); setShowForm(false); void utils.product.adminList.invalidate(); },
@@ -347,18 +382,52 @@ export default function AdminProductsPage() {
           <h1 className="text-xl font-bold text-white">Products</h1>
           <p className="text-xs text-zinc-500 mt-0.5">{data?.total ?? 0} total products</p>
         </div>
-        <Button onClick={() => { form.reset(); setEditId(null); setShowForm(true); }}
-          className="bg-amber-500 hover:bg-amber-600 text-black text-sm">
-          <Plus className="h-4 w-4 mr-1" /> Add Product
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline" size="sm"
+            onClick={() => void utils.product.adminList.invalidate()}
+            className="border-white/10 bg-transparent text-zinc-400 hover:text-white text-xs"
+          >
+            <RefreshCw className="h-3.5 w-3.5" />
+          </Button>
+          <Button onClick={() => { form.reset(); setEditId(null); setShowForm(true); }}
+            className="bg-amber-500 hover:bg-amber-600 text-black text-sm">
+            <Plus className="h-4 w-4 mr-1" /> Add Product
+          </Button>
+        </div>
       </div>
 
-      {/* Search */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500" />
-        <Input placeholder="Search by name or article number…" value={search}
-          onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-          className="pl-9 bg-zinc-900 border-white/10 text-white" />
+      {/* Stat Cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <ProductStatCard icon={Package} label="Total Products" value={stats.total} accent="bg-blue-500/20 text-blue-400" />
+        <ProductStatCard icon={Eye} label="Active" value={stats.active} accent="bg-green-500/20 text-green-400" />
+        <ProductStatCard icon={Star} label="Featured" value={stats.featured} accent="bg-amber-500/20 text-amber-400" />
+        <ProductStatCard icon={Tag} label="On Sale" value={stats.onSale} accent="bg-purple-500/20 text-purple-400" />
+      </div>
+
+      {/* Category Tabs + Search */}
+      <div className="flex flex-col sm:flex-row gap-3">
+        <div className="flex gap-1 bg-zinc-900/50 p-1 rounded-xl border border-white/5 w-fit">
+          {['ALL', ...CATEGORIES].map((cat) => (
+            <button
+              key={cat}
+              onClick={() => { setCategoryFilter(cat); setPage(1); }}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                categoryFilter === cat
+                  ? 'bg-zinc-800 text-white shadow-sm'
+                  : 'text-zinc-500 hover:text-zinc-300'
+              }`}
+            >
+              {cat === 'ALL' ? 'All' : cat}
+            </button>
+          ))}
+        </div>
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500" />
+          <Input placeholder="Search by name or article number…" value={search}
+            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+            className="pl-9 bg-zinc-900 border-white/10 text-white" />
+        </div>
       </div>
 
       {/* Table */}
@@ -379,24 +448,31 @@ export default function AdminProductsPage() {
                 <tr><td colSpan={5} className="text-center py-10 text-zinc-500">Loading…</td></tr>
               )}
               {data?.items.map((p) => (
-                <tr key={p.id} className="hover:bg-white/2 transition-colors">
+                <tr key={p.id} className={`hover:bg-white/[0.02] transition-colors ${!p.isActive ? 'opacity-50' : ''}`}>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-lg bg-zinc-800 flex items-center justify-center overflow-hidden flex-shrink-0">
+                      <div className="w-12 h-12 rounded-lg bg-zinc-800 flex items-center justify-center overflow-hidden flex-shrink-0 border border-white/5">
                         {p.images[0] ? (
                           <img src={p.images[0].url} alt="" className="w-full h-full object-cover" />
                         ) : (
-                          <Package className="h-4 w-4 text-zinc-600" />
+                          <Package className="h-5 w-5 text-zinc-600" />
                         )}
                       </div>
-                      <div>
-                        <div className="font-medium text-white text-xs">{p.name}</div>
-                        <div className="text-xs text-zinc-500">{p.articleNumber} · {p._count.variants} variants</div>
+                      <div className="min-w-0">
+                        <div className="font-medium text-white text-xs truncate max-w-[200px]">{p.name}</div>
+                        <div className="text-xs text-zinc-500 mt-0.5">
+                          {p.articleNumber}
+                        </div>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <Layers className="h-3 w-3 text-zinc-600" />
+                          <span className="text-xs text-zinc-600">{p._count.variants} variants · {p._count.reviews ?? 0} reviews</span>
+                        </div>
                       </div>
                     </div>
                   </td>
                   <td className="px-4 py-3 hidden sm:table-cell">
                     <Badge variant="outline" className="text-xs border-white/10 text-zinc-400">{p.category}</Badge>
+                    <div className="text-xs text-zinc-600 mt-1">{p.style}</div>
                   </td>
                   <td className="px-4 py-3 text-right">
                     <div className="text-xs font-medium text-amber-400">
@@ -409,10 +485,12 @@ export default function AdminProductsPage() {
                     )}
                   </td>
                   <td className="px-4 py-3 text-center hidden md:table-cell">
-                    <span className={`text-xs px-2 py-0.5 rounded-full ${p.isActive ? 'bg-green-500/15 text-green-400' : 'bg-red-500/15 text-red-400'}`}>
-                      {p.isActive ? 'Active' : 'Inactive'}
-                    </span>
-                    {p.isFeatured && <Badge className="ml-1 text-xs bg-amber-500/15 text-amber-400 border-0">Featured</Badge>}
+                    <div className="flex flex-col items-center gap-1">
+                      <span className={`text-xs px-2 py-0.5 rounded-full ${p.isActive ? 'bg-green-500/15 text-green-400' : 'bg-red-500/15 text-red-400'}`}>
+                        {p.isActive ? 'Active' : 'Inactive'}
+                      </span>
+                      {p.isFeatured && <Badge className="text-xs bg-amber-500/15 text-amber-400 border-0">★ Featured</Badge>}
+                    </div>
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-1">
@@ -420,7 +498,8 @@ export default function AdminProductsPage() {
                         className="h-7 w-7 p-0 text-zinc-400 hover:text-amber-400">
                         <ImagePlus className="h-3.5 w-3.5" />
                       </Button>
-                      <Button variant="ghost" size="sm" onClick={() => deleteMutation.mutate(p.id)} title="Deactivate"
+                      <Button variant="ghost" size="sm" onClick={() => deleteMutation.mutate(p.id)}
+                        title={p.isActive ? 'Deactivate' : 'Activate'}
                         className="h-7 w-7 p-0 text-zinc-400 hover:text-red-400">
                         {p.isActive ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
                       </Button>
@@ -434,12 +513,16 @@ export default function AdminProductsPage() {
         {/* Pagination */}
         {data && data.totalPages > 1 && (
           <div className="flex items-center justify-between px-4 py-3 border-t border-white/5">
-            <span className="text-xs text-zinc-500">Page {page} of {data.totalPages}</span>
+            <span className="text-xs text-zinc-500">Page {page} of {data.totalPages} · {data.total} products</span>
             <div className="flex gap-2">
               <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(p => p - 1)}
-                className="text-xs border-white/10 bg-transparent text-zinc-400">Prev</Button>
+                className="text-xs border-white/10 bg-transparent text-zinc-400">
+                <ChevronLeft className="h-3.5 w-3.5" />
+              </Button>
               <Button variant="outline" size="sm" disabled={page >= data.totalPages} onClick={() => setPage(p => p + 1)}
-                className="text-xs border-white/10 bg-transparent text-zinc-400">Next</Button>
+                className="text-xs border-white/10 bg-transparent text-zinc-400">
+                <ChevronRight className="h-3.5 w-3.5" />
+              </Button>
             </div>
           </div>
         )}

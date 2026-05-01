@@ -71,7 +71,13 @@ export const inventoryRouter = createTRPCRouter({
           include: {
             branch: { select: { name: true, city: true } },
             variant: {
-              include: { product: { select: { name: true, articleNumber: true } } },
+              select: {
+                sku: true,
+                color: true,
+                colorHex: true,
+                sizeUK: true,
+                product: { select: { name: true, articleNumber: true } },
+              },
             },
           },
         }),
