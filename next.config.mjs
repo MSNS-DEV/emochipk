@@ -7,9 +7,14 @@ const nextConfig = {
         protocol: 'https',
         hostname: 't3.storageapi.dev',
       },
+      {
+        protocol: 'https',
+        hostname: 'executivemochi.pk',
+      },
     ],
   },
 
 }
+
 
 export default nextConfig

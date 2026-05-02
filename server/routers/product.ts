@@ -114,7 +114,7 @@ export const productRouter = createTRPCRouter({
         skip: (page - 1) * pageSize,
         take: pageSize,
         include: {
-          images: { where: { isPrimary: true }, take: 1 },
+          images: { orderBy: [{ isPrimary: "desc" }, { sortOrder: "asc" }], take: 1 },
           variants: { where: { isActive: true }, take: 1 },
           _count: { select: { reviews: { where: { isApproved: true } } } },
         },
@@ -165,7 +165,7 @@ export const productRouter = createTRPCRouter({
       take: 8,
       orderBy: { updatedAt: "desc" },
       include: {
-        images: { where: { isPrimary: true }, take: 1 },
+        images: { orderBy: [{ isPrimary: "desc" }, { sortOrder: "asc" }], take: 1 },
         variants: { where: { isActive: true }, take: 1 },
       },
     })
@@ -178,7 +178,7 @@ export const productRouter = createTRPCRouter({
       orderBy: { createdAt: "desc" },
       take: 8,
       include: {
-        images: { where: { isPrimary: true }, take: 1 },
+        images: { orderBy: [{ isPrimary: "desc" }, { sortOrder: "asc" }], take: 1 },
         variants: { where: { isActive: true }, take: 1 },
       },
     })
@@ -191,7 +191,7 @@ export const productRouter = createTRPCRouter({
       orderBy: { updatedAt: "desc" },
       take: 8,
       include: {
-        images: { where: { isPrimary: true }, take: 1 },
+        images: { orderBy: [{ isPrimary: "desc" }, { sortOrder: "asc" }], take: 1 },
         variants: { where: { isActive: true }, take: 1 },
       },
     })
@@ -210,7 +210,7 @@ export const productRouter = createTRPCRouter({
       take: 10,
       select: {
         id: true, name: true, slug: true, basePrice: true, salePrice: true,
-        images: { where: { isPrimary: true }, take: 1, select: { url: true, altText: true } },
+        images: { orderBy: [{ isPrimary: "desc" }, { sortOrder: "asc" }], take: 1, select: { url: true, altText: true } },
       },
     })
   ),
@@ -350,7 +350,7 @@ export const productRouter = createTRPCRouter({
           take: input.pageSize,
           orderBy: { createdAt: "desc" },
           include: {
-            images: { where: { isPrimary: true }, take: 1 },
+            images: { orderBy: [{ isPrimary: "desc" }, { sortOrder: "asc" }], take: 1 },
             _count: { select: { variants: true, reviews: true } },
           },
         }),
