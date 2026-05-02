@@ -20,9 +20,56 @@ import {
 } from '@/components/ui/dialog';
 import {
   Plus, Search, Edit, Trash2, Package, Eye, EyeOff, ImagePlus, X, Upload, Loader2,
-  ChevronLeft, ChevronRight, Star, Tag, Layers, RefreshCw,
+  ChevronLeft, ChevronRight, Star, Tag, Layers, RefreshCw, AlertCircle,
 } from 'lucide-react';
 import { toast } from 'sonner';
+
+// ─── Validated Image (with loading / error / retry) ───────────────────────────
+
+function ValidatedImage({ src, alt, className }: { src: string; alt: string; className?: string }) {
+  const [status, setStatus] = useState<'loading' | 'loaded' | 'error'>('loading');
+  const [retries, setRetries] = useState(0);
+  const maxRetries = 3;
+
+  const handleRetry = useCallback(() => {
+    if (retries < maxRetries) {
+      setStatus('loading');
+      setRetries(r => r + 1);
+    }
+  }, [retries]);
+
+  const imgSrc = retries > 0 ? `${src}${src.includes('?') ? '&' : '?'}r=${retries}` : src;
+
+  return (
+    <div className={`relative ${className ?? 'w-full h-full'}`}>
+      {status === 'loading' && (
+        <div className="absolute inset-0 flex items-center justify-center bg-zinc-800 rounded">
+          <Loader2 className="h-4 w-4 text-amber-500 animate-spin" />
+        </div>
+      )}
+      {status === 'error' && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-zinc-800 rounded gap-1 cursor-pointer"
+          onClick={handleRetry} title={retries < maxRetries ? 'Click to retry' : 'Failed to load'}>
+          <AlertCircle className="h-4 w-4 text-red-400" />
+          {retries < maxRetries && <span className="text-[9px] text-zinc-500">Retry</span>}
+        </div>
+      )}
+      <img
+        src={imgSrc}
+        alt={alt}
+        className={`w-full h-full object-cover transition-opacity duration-300 ${status === 'loaded' ? 'opacity-100' : 'opacity-0'}`}
+        onLoad={() => setStatus('loaded')}
+        onError={() => {
+          if (retries < maxRetries) {
+            setTimeout(handleRetry, 1000 * (retries + 1));
+          } else {
+            setStatus('error');
+          }
+        }}
+      />
+    </div>
+  );
+}
 
 const STYLES = ['LOAFERS', 'OXFORD', 'MOCCASINS', 'PESHAWARI', 'SANDALS', 'SNEAKERS'] as const;
 const CATEGORIES = ['MEN', 'WOMEN', 'KIDS'] as const;
@@ -76,7 +123,7 @@ const FormSchema = z.object({
 
 type FormValues = z.infer<typeof FormSchema>;
 
-// ─── Image Manager (Upload + URL) ─────────────────────────────────────────────
+// ─── Image Manager (Upload + URL + Gallery) ────────────────────────────────────
 
 function ImageManager({ productId, onAdded }: { productId: string; onAdded: () => void }) {
   const [url, setUrl] = useState('');
@@ -86,8 +133,17 @@ function ImageManager({ productId, onAdded }: { productId: string; onAdded: () =
   const [previews, setPreviews] = useState<{ file: File; preview: string }[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Fetch existing images for this product
+  const { data: product, refetch: refetchProduct } = api.product.getById.useQuery(productId);
+  const existingImages = product?.images ?? [];
+
   const addImage = api.product.addImage.useMutation({
-    onSuccess: () => { setUrl(''); onAdded(); toast.success('Image added'); },
+    onSuccess: () => { setUrl(''); void refetchProduct(); onAdded(); toast.success('Image added'); },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const deleteImage = api.product.deleteImage.useMutation({
+    onSuccess: () => { void refetchProduct(); onAdded(); toast.success('Image removed'); },
     onError: (e) => toast.error(e.message),
   });
 
@@ -140,13 +196,14 @@ function ImageManager({ productId, onAdded }: { productId: string; onAdded: () =
 
     if (successCount > 0) {
       toast.success(`${successCount} image${successCount > 1 ? 's' : ''} uploaded!`);
+      void refetchProduct();
       onAdded();
     }
 
     setPreviews([]);
     setUploading(false);
     if (fileInputRef.current) fileInputRef.current.value = '';
-  }, [productId, isPrimary, addImage, onAdded]);
+  }, [productId, isPrimary, addImage, onAdded, refetchProduct]);
 
   const handleDrag = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -175,6 +232,31 @@ function ImageManager({ productId, onAdded }: { productId: string; onAdded: () =
 
   return (
     <div className="space-y-4">
+      {/* Existing Images Gallery */}
+      {existingImages.length > 0 && (
+        <div className="space-y-2">
+          <label className="text-xs text-zinc-400 font-medium">Current Images ({existingImages.length})</label>
+          <div className="grid grid-cols-3 gap-2">
+            {existingImages.map((img) => (
+              <div key={img.id} className="relative group rounded-lg overflow-hidden border border-white/10 aspect-square">
+                <ValidatedImage src={img.url} alt={img.altText ?? 'Product image'} />
+                {img.isPrimary && (
+                  <span className="absolute top-1 left-1 text-[9px] px-1.5 py-0.5 rounded bg-amber-500 text-black font-bold">PRIMARY</span>
+                )}
+                <button
+                  onClick={() => deleteImage.mutate(img.id)}
+                  disabled={deleteImage.isPending}
+                  className="absolute top-1 right-1 w-5 h-5 rounded bg-red-500/80 hover:bg-red-500 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                  title="Delete image"
+                >
+                  <X className="h-3 w-3 text-white" />
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Drag & Drop Zone */}
       <div
         onDragEnter={handleDrag}
@@ -259,6 +341,7 @@ function ImageManager({ productId, onAdded }: { productId: string; onAdded: () =
     </div>
   );
 }
+
 
 // ─── Stat Card ────────────────────────────────────────────────────────────────
 function ProductStatCard({ icon: Icon, label, value, accent }: {
@@ -376,6 +459,45 @@ export default function AdminProductsPage() {
 
   const isPending = createMutation.isPending || updateMutation.isPending;
 
+  // ─── Open Edit Form ─────────────────────────────────────────────────────────
+  const [loadingEditId, setLoadingEditId] = useState<string | null>(null);
+
+  async function openEditForm(productId: string) {
+    setLoadingEditId(productId);
+    try {
+      const product = await utils.product.getById.fetch(productId);
+      if (!product) { toast.error('Product not found'); return; }
+
+      // Collect unique sizes and colors from existing variants
+      const sizes = [...new Set(product.variants.map(v => v.sizeUK))];
+      const colors = [...new Set(product.variants.map(v => v.color))];
+
+      form.reset({
+        articleNumber: product.articleNumber,
+        name: product.name,
+        slug: product.slug,
+        description: product.description,
+        basePrice: Number(product.basePrice),
+        salePrice: product.salePrice ? Number(product.salePrice) : undefined,
+        category: product.category as typeof CATEGORIES[number],
+        style: product.style as typeof STYLES[number],
+        leatherType: product.leatherType as typeof LEATHER_TYPES[number],
+        occasion: product.occasion as string[],
+        manufacturingCity: product.manufacturingCity,
+        isFeatured: product.isFeatured,
+        selectedSizes: sizes,
+        selectedColors: colors,
+        images: product.images.map(img => ({ url: img.url, isPrimary: img.isPrimary })),
+      });
+      setEditId(productId);
+      setShowForm(true);
+    } catch (e) {
+      toast.error('Failed to load product for editing');
+    } finally {
+      setLoadingEditId(null);
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -413,11 +535,10 @@ export default function AdminProductsPage() {
             <button
               key={cat}
               onClick={() => { setCategoryFilter(cat); setPage(1); }}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                categoryFilter === cat
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${categoryFilter === cat
                   ? 'bg-zinc-800 text-white shadow-sm'
                   : 'text-zinc-500 hover:text-zinc-300'
-              }`}
+                }`}
             >
               {cat === 'ALL' ? 'All' : cat}
             </button>
@@ -454,7 +575,7 @@ export default function AdminProductsPage() {
                     <div className="flex items-center gap-3">
                       <div className="w-12 h-12 rounded-lg bg-zinc-800 flex items-center justify-center overflow-hidden flex-shrink-0 border border-white/5">
                         {p.images[0] ? (
-                          <img src={p.images[0].url} alt="" className="w-full h-full object-cover" />
+                          <ValidatedImage src={p.images[0].url} alt={p.name} />
                         ) : (
                           <Package className="h-5 w-5 text-zinc-600" />
                         )}
@@ -495,6 +616,12 @@ export default function AdminProductsPage() {
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-1">
+                      <Button variant="ghost" size="sm"
+                        onClick={() => openEditForm(p.id)} title="Edit product"
+                        disabled={loadingEditId === p.id}
+                        className="h-7 w-7 p-0 text-zinc-400 hover:text-blue-400">
+                        {loadingEditId === p.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Edit className="h-3.5 w-3.5" />}
+                      </Button>
                       <Button variant="ghost" size="sm" onClick={() => setShowImageDialog(p.id)} title="Manage images"
                         className="h-7 w-7 p-0 text-zinc-400 hover:text-amber-400">
                         <ImagePlus className="h-3.5 w-3.5" />
@@ -638,7 +765,7 @@ export default function AdminProductsPage() {
               <Label className="text-xs text-zinc-400">Colors to Generate *</Label>
               <div className="flex flex-wrap gap-2">
                 {COLORS.map((c) => (
-                  <button key={c.name} type="button" title={c.name}
+                  <Button key={c.name} type="button" title={c.name}
                     onClick={() => toggleArr(selectedColors, c.name, (v) => form.setValue('selectedColors', v))}
                     className={`w-8 h-8 rounded-full border-2 transition-all ${selectedColors.includes(c.name) ? 'border-amber-500 ring-2 ring-amber-500 ring-offset-1 ring-offset-zinc-950' : 'border-white/20 hover:scale-110'}`}
                     style={{ backgroundColor: c.hex }} />
