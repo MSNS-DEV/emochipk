@@ -128,6 +128,7 @@ type FormValues = z.infer<typeof FormSchema>;
 function ImageManager({ productId, onAdded }: { productId: string; onAdded: () => void }) {
   const [url, setUrl] = useState('');
   const [isPrimary, setIsPrimary] = useState(false);
+  const [selectedColor, setSelectedColor] = useState<string>(''); // Selected color for images
   const [uploading, setUploading] = useState(false);
   const [dragActive, setDragActive] = useState(false);
   const [previews, setPreviews] = useState<{ file: File; preview: string }[]>([]);
@@ -136,6 +137,14 @@ function ImageManager({ productId, onAdded }: { productId: string; onAdded: () =
   // Fetch existing images for this product
   const { data: product, refetch: refetchProduct } = api.product.getById.useQuery(productId);
   const existingImages = product?.images ?? [];
+
+  // Group images by color tag for better organization
+  const imagesByColor = existingImages.reduce((acc, img) => {
+    const color = img.colorTag || 'General';
+    if (!acc[color]) acc[color] = [];
+    acc[color].push(img);
+    return acc;
+  }, {} as Record<string, typeof existingImages>);
 
   const addImage = api.product.addImage.useMutation({
     onSuccess: () => { setUrl(''); void refetchProduct(); onAdded(); toast.success('Image added'); },
@@ -187,6 +196,7 @@ function ImageManager({ productId, onAdded }: { productId: string; onAdded: () =
           url: data.url,
           isPrimary: isPrimary && successCount === 0,
           sortOrder: 0,
+          colorTag: selectedColor || undefined, // Associate with selected color
         });
         successCount++;
       } catch {
@@ -232,28 +242,38 @@ function ImageManager({ productId, onAdded }: { productId: string; onAdded: () =
 
   return (
     <div className="space-y-4">
-      {/* Existing Images Gallery */}
+      {/* Existing Images Gallery - Grouped by Color */}
       {existingImages.length > 0 && (
-        <div className="space-y-2">
+        <div className="space-y-3">
           <label className="text-xs text-zinc-400 font-medium">Current Images ({existingImages.length})</label>
-          <div className="grid grid-cols-3 gap-2">
-            {existingImages.map((img) => (
-              <div key={img.id} className="relative group rounded-lg overflow-hidden border border-white/10 aspect-square">
-                <ValidatedImage src={img.url} alt={img.altText ?? 'Product image'} />
-                {img.isPrimary && (
-                  <span className="absolute top-1 left-1 text-[9px] px-1.5 py-0.5 rounded bg-amber-500 text-black font-bold">PRIMARY</span>
+          {Object.entries(imagesByColor).map(([colorLabel, images]) => (
+            <div key={colorLabel} className="space-y-1.5">
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-zinc-500">{colorLabel}</span>
+                {colorLabel !== 'General' && (
+                  <div className="w-4 h-4 rounded-full border border-white/10" style={{ backgroundColor: COLORS.find((c) => c.name === colorLabel)?.hex || '#666' }} />
                 )}
-                <button
-                  onClick={() => deleteImage.mutate(img.id)}
-                  disabled={deleteImage.isPending}
-                  className="absolute top-1 right-1 w-5 h-5 rounded bg-red-500/80 hover:bg-red-500 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                  title="Delete image"
-                >
-                  <X className="h-3 w-3 text-white" />
-                </button>
               </div>
-            ))}
-          </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {images.map((img) => (
+                  <div key={img.id} className="relative group rounded-lg overflow-hidden border border-white/10 aspect-square">
+                    <ValidatedImage src={img.url} alt={img.altText ?? 'Product image'} />
+                    {img.isPrimary && (
+                      <span className="absolute top-1 left-1 text-[9px] px-1.5 py-0.5 rounded bg-amber-500 text-black font-bold">PRIMARY</span>
+                    )}
+                    <button
+                      onClick={() => deleteImage.mutate(img.id)}
+                      disabled={deleteImage.isPending}
+                      className="absolute top-1 right-1 w-6 h-6 rounded bg-red-500/80 hover:bg-red-500 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                      title="Delete image"
+                    >
+                      <X className="h-3 w-3 text-white" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
         </div>
       )}
 
@@ -264,7 +284,7 @@ function ImageManager({ productId, onAdded }: { productId: string; onAdded: () =
         onDragOver={handleDrag}
         onDrop={handleDrop}
         onClick={() => !uploading && fileInputRef.current?.click()}
-        className={`relative border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-all duration-200
+        className={`relative border-2 border-dashed rounded-xl p-4 sm:p-6 text-center cursor-pointer transition-all duration-200
           ${dragActive
             ? 'border-amber-500 bg-amber-500/10'
             : 'border-white/10 hover:border-white/25 hover:bg-white/[0.02]'
@@ -286,13 +306,13 @@ function ImageManager({ productId, onAdded }: { productId: string; onAdded: () =
             <p className="text-sm text-amber-400">Uploading…</p>
           </div>
         ) : (
-          <div className="flex flex-col items-center gap-2">
-            <div className="w-12 h-12 rounded-full bg-amber-500/10 flex items-center justify-center">
-              <Upload className="h-5 w-5 text-amber-500" />
+          <div className="flex flex-col items-center gap-2 sm:gap-3">
+            <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-amber-500/10 flex items-center justify-center">
+              <Upload className="h-5 w-5 sm:h-6 sm:w-6 text-amber-500" />
             </div>
             <div>
-              <p className="text-sm text-white font-medium">Click to upload or drag & drop</p>
-              <p className="text-xs text-zinc-500 mt-0.5">JPEG, PNG, WebP, AVIF — Max 4.5MB each</p>
+              <p className="text-xs sm:text-sm text-white font-medium">Click to upload or drag & drop</p>
+              <p className="text-xs text-zinc-500 mt-1">JPEG, PNG, WebP, AVIF — Max 4.5MB</p>
             </div>
           </div>
         )}
@@ -313,6 +333,20 @@ function ImageManager({ productId, onAdded }: { productId: string; onAdded: () =
           ))}
         </div>
       )}
+
+      {/* Color Selection (Variant Images) */}
+      <div className="space-y-2">
+        <Label className="text-xs text-zinc-400">Assign to Color (Optional)</Label>
+        <div className="flex flex-wrap gap-2">
+          {COLORS.map((c) => (
+            <button key={c.name} type="button" title={c.name}
+              onClick={() => setSelectedColor(selectedColor === c.name ? '' : c.name)}
+              className={`w-8 h-8 sm:w-9 sm:h-9 rounded-full border-2 transition-all ${selectedColor === c.name ? 'border-amber-500 ring-2 ring-amber-500 ring-offset-1 ring-offset-zinc-950' : 'border-white/20 hover:scale-110'}`}
+              style={{ backgroundColor: c.hex }} />
+          ))}
+        </div>
+        {selectedColor && <p className="text-xs text-amber-400">Images will show when customers select {selectedColor}</p>}
+      </div>
 
       {/* Primary checkbox */}
       <label className="flex items-center gap-2 text-xs text-zinc-400">
@@ -500,28 +534,28 @@ export default function AdminProductsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl font-bold text-white">Products</h1>
+          <h1 className="text-2xl sm:text-xl font-bold text-white">Products</h1>
           <p className="text-xs text-zinc-500 mt-0.5">{data?.total ?? 0} total products</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 w-full sm:w-auto">
           <Button
             variant="outline" size="sm"
             onClick={() => void utils.product.adminList.invalidate()}
-            className="border-white/10 bg-transparent text-zinc-400 hover:text-white text-xs"
+            className="border-white/10 bg-transparent text-zinc-400 hover:text-white text-xs flex-shrink-0"
           >
             <RefreshCw className="h-3.5 w-3.5" />
           </Button>
           <Button onClick={() => { form.reset(); setEditId(null); setShowForm(true); }}
-            className="bg-amber-500 hover:bg-amber-600 text-black text-sm">
+            className="bg-amber-500 hover:bg-amber-600 text-black text-sm flex-1 sm:flex-none">
             <Plus className="h-4 w-4 mr-1" /> Add Product
           </Button>
         </div>
       </div>
 
       {/* Stat Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         <ProductStatCard icon={Package} label="Total Products" value={stats.total} accent="bg-blue-500/20 text-blue-400" />
         <ProductStatCard icon={Eye} label="Active" value={stats.active} accent="bg-green-500/20 text-green-400" />
         <ProductStatCard icon={Star} label="Featured" value={stats.featured} accent="bg-amber-500/20 text-amber-400" />
@@ -552,9 +586,10 @@ export default function AdminProductsPage() {
         </div>
       </div>
 
-      {/* Table */}
+      {/* Table - Responsive Card View on Mobile */}
       <div className="bg-zinc-900 border border-white/5 rounded-xl overflow-hidden">
-        <div className="overflow-x-auto">
+        {/* Desktop Table View */}
+        <div className="hidden sm:block overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-white/5 text-xs text-zinc-500 uppercase tracking-wider">
@@ -619,17 +654,17 @@ export default function AdminProductsPage() {
                       <Button variant="ghost" size="sm"
                         onClick={() => openEditForm(p.id)} title="Edit product"
                         disabled={loadingEditId === p.id}
-                        className="h-7 w-7 p-0 text-zinc-400 hover:text-blue-400">
-                        {loadingEditId === p.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Edit className="h-3.5 w-3.5" />}
+                        className="h-9 w-9 p-0 text-zinc-400 hover:text-blue-400">
+                        {loadingEditId === p.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Edit className="h-4 w-4" />}
                       </Button>
                       <Button variant="ghost" size="sm" onClick={() => setShowImageDialog(p.id)} title="Manage images"
-                        className="h-7 w-7 p-0 text-zinc-400 hover:text-amber-400">
-                        <ImagePlus className="h-3.5 w-3.5" />
+                        className="h-9 w-9 p-0 text-zinc-400 hover:text-amber-400">
+                        <ImagePlus className="h-4 w-4" />
                       </Button>
                       <Button variant="ghost" size="sm" onClick={() => deleteMutation.mutate(p.id)}
                         title={p.isActive ? 'Deactivate' : 'Activate'}
-                        className="h-7 w-7 p-0 text-zinc-400 hover:text-red-400">
-                        {p.isActive ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                        className="h-9 w-9 p-0 text-zinc-400 hover:text-red-400">
+                        {p.isActive ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                       </Button>
                     </div>
                   </td>
@@ -637,6 +672,79 @@ export default function AdminProductsPage() {
               ))}
             </tbody>
           </table>
+        </div>
+
+        {/* Mobile Card View */}
+        <div className="sm:hidden">
+          {isLoading && (
+            <div className="text-center py-10 text-zinc-500">Loading…</div>
+          )}
+          <div className="space-y-3 p-4">
+            {data?.items.map((p) => (
+              <div key={p.id} className={`bg-zinc-800/50 border border-white/5 rounded-lg p-4 space-y-3 ${!p.isActive ? 'opacity-50' : ''}`}>
+                <div className="flex gap-3">
+                  <div className="w-16 h-16 rounded-lg bg-zinc-800 flex items-center justify-center overflow-hidden flex-shrink-0 border border-white/5">
+                    {p.images[0] ? (
+                      <ValidatedImage src={p.images[0].url} alt={p.name} />
+                    ) : (
+                      <Package className="h-6 w-6 text-zinc-600" />
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium text-white text-sm truncate">{p.name}</div>
+                    <div className="text-xs text-zinc-500">{p.articleNumber}</div>
+                    <div className="flex items-center gap-1.5 mt-1">
+                      <Badge variant="outline" className="text-xs border-white/10 text-zinc-400">{p.category}</Badge>
+                      <Badge variant="outline" className="text-xs border-white/10 text-zinc-400">{p.style}</Badge>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="flex items-center justify-between pt-2 border-t border-white/5">
+                  <div>
+                    <div className="text-sm font-medium text-amber-400">
+                      PKR {Number(p.salePrice ?? p.basePrice).toLocaleString('en-PK')}
+                    </div>
+                    {p.salePrice && (
+                      <div className="text-xs text-zinc-600 line-through">
+                        PKR {Number(p.basePrice).toLocaleString('en-PK')}
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex flex-col items-center gap-1">
+                    <span className={`text-xs px-2 py-0.5 rounded-full ${p.isActive ? 'bg-green-500/15 text-green-400' : 'bg-red-500/15 text-red-400'}`}>
+                      {p.isActive ? 'Active' : 'Inactive'}
+                    </span>
+                    {p.isFeatured && <Badge className="text-xs bg-amber-500/15 text-amber-400 border-0">★ Featured</Badge>}
+                  </div>
+                </div>
+
+                <div className="flex gap-2 pt-2 border-t border-white/5">
+                  <Button variant="outline" size="sm"
+                    onClick={() => openEditForm(p.id)}
+                    disabled={loadingEditId === p.id}
+                    className="flex-1 h-9 text-xs border-white/10 text-zinc-400">
+                    {loadingEditId === p.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Edit className="h-4 w-4 mr-1" />}
+                    Edit
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => setShowImageDialog(p.id)}
+                    className="flex-1 h-9 text-xs border-white/10 text-zinc-400">
+                    <ImagePlus className="h-4 w-4 mr-1" />
+                    Images
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => deleteMutation.mutate(p.id)}
+                    className="h-9 w-9 p-0 border-white/10 text-zinc-400">
+                    {p.isActive ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </Button>
+                </div>
+
+                <div className="flex items-center gap-1 text-xs text-zinc-600">
+                  <Layers className="h-3 w-3" />
+                  <span>{p._count.variants} variants · {p._count.reviews ?? 0} reviews</span>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
         {/* Pagination */}
         {data && data.totalPages > 1 && (
@@ -658,30 +766,32 @@ export default function AdminProductsPage() {
 
       {/* Product Form Sheet */}
       <Sheet open={showForm} onOpenChange={setShowForm}>
-        <SheetContent side="right" className="w-full sm:max-w-2xl bg-zinc-950 border-white/10 text-white overflow-y-auto p-6">
+        <SheetContent side="right" className="w-full sm:max-w-2xl bg-zinc-950 border-white/10 text-white overflow-y-auto p-4 sm:p-6">
           <SheetHeader className="mb-6">
             <SheetTitle className="text-white">{editId ? 'Edit Product' : 'Add New Product'}</SheetTitle>
           </SheetHeader>
 
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 sm:space-y-5">
             {/* Basic Info */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="col-span-2 space-y-1">
+            <div className="space-y-4">
+              <div className="space-y-1.5">
                 <Label className="text-xs text-zinc-400">Product Name *</Label>
                 <Input {...form.register('name', { onChange: (e) => { if (!editId) form.setValue('slug', toSlug(e.target.value)); } })}
-                  className="bg-zinc-900 border-white/10" placeholder="e.g. Executive Peshawari – Calf Skin" />
+                  className="bg-zinc-900 border-white/10 h-10" placeholder="e.g. Executive Peshawari – Calf Skin" />
               </div>
-              <div className="space-y-1">
-                <Label className="text-xs text-zinc-400">Article Number *</Label>
-                <Input {...form.register('articleNumber')} className="bg-zinc-900 border-white/10" placeholder="EM-GP-001" />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs text-zinc-400">URL Slug *</Label>
-                <Input {...form.register('slug')} className="bg-zinc-900 border-white/10" />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-zinc-400">Article Number *</Label>
+                  <Input {...form.register('articleNumber')} className="bg-zinc-900 border-white/10 h-10" placeholder="EM-GP-001" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-zinc-400">URL Slug *</Label>
+                  <Input {...form.register('slug')} className="bg-zinc-900 border-white/10 h-10" />
+                </div>
               </div>
             </div>
 
-            <div className="space-y-1">
+            <div className="space-y-1.5">
               <Label className="text-xs text-zinc-400">Description *</Label>
               <textarea {...form.register('description')}
                 className="w-full h-24 px-3 py-2 text-sm bg-zinc-900 border border-white/10 rounded-lg text-white resize-none focus:outline-none focus:border-amber-500/50"
@@ -689,24 +799,24 @@ export default function AdminProductsPage() {
             </div>
 
             {/* Pricing */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
                 <Label className="text-xs text-zinc-400">Base Price (PKR) *</Label>
-                <Input {...form.register('basePrice')} type="number" className="bg-zinc-900 border-white/10" placeholder="8000" />
+                <Input {...form.register('basePrice')} type="number" className="bg-zinc-900 border-white/10 h-10" placeholder="8000" />
               </div>
-              <div className="space-y-1">
+              <div className="space-y-1.5">
                 <Label className="text-xs text-zinc-400">Sale Price (PKR)</Label>
-                <Input {...form.register('salePrice')} type="number" className="bg-zinc-900 border-white/10" placeholder="Optional" />
+                <Input {...form.register('salePrice')} type="number" className="bg-zinc-900 border-white/10 h-10" placeholder="Optional" />
               </div>
             </div>
 
             {/* Dropdowns */}
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               {(['category', 'style', 'leatherType'] as const).map((field) => (
-                <div key={field} className="space-y-1">
+                <div key={field} className="space-y-1.5">
                   <Label className="text-xs text-zinc-400 capitalize">{field.replace(/([A-Z])/g, ' $1')}</Label>
                   <Select onValueChange={(v) => form.setValue(field, v as never)} defaultValue={form.watch(field)}>
-                    <SelectTrigger className="bg-zinc-900 border-white/10 text-white text-xs h-9">
+                    <SelectTrigger className="bg-zinc-900 border-white/10 text-white text-xs h-10">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent className="bg-zinc-900 border-white/10">
@@ -734,25 +844,25 @@ export default function AdminProductsPage() {
             </div>
 
             {/* City & Featured */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
                 <Label className="text-xs text-zinc-400">Manufacturing City *</Label>
-                <Input {...form.register('manufacturingCity')} className="bg-zinc-900 border-white/10" placeholder="Pasrur" />
+                <Input {...form.register('manufacturingCity')} className="bg-zinc-900 border-white/10 h-10" placeholder="Pasrur" />
               </div>
-              <div className="flex items-center gap-2 pt-5">
-                <input type="checkbox" {...form.register('isFeatured')} id="featured" className="accent-amber-500" />
+              <div className="flex items-center gap-2 pt-6">
+                <input type="checkbox" {...form.register('isFeatured')} id="featured" className="accent-amber-500 w-4 h-4" />
                 <Label htmlFor="featured" className="text-xs text-zinc-400 cursor-pointer">Featured product</Label>
               </div>
             </div>
 
             {/* Sizes */}
-            <div className="space-y-2">
+            <div className="space-y-2.5">
               <Label className="text-xs text-zinc-400">Sizes to Generate * ({category} sizes)</Label>
               <div className="flex flex-wrap gap-2">
                 {sizeOptions.map((sz) => (
                   <button key={sz} type="button"
                     onClick={() => toggleArr(selectedSizes, sz, (v) => form.setValue('selectedSizes', v))}
-                    className={`w-10 h-9 rounded-lg text-xs border transition-all ${selectedSizes.includes(sz) ? 'bg-amber-500/20 text-amber-400 border-amber-500/40' : 'border-white/10 text-zinc-500 hover:border-white/30'}`}>
+                    className={`h-10 px-3 rounded-lg text-xs border transition-all ${selectedSizes.includes(sz) ? 'bg-amber-500/20 text-amber-400 border-amber-500/40' : 'border-white/10 text-zinc-500 hover:border-white/30'}`}>
                     {sz}
                   </button>
                 ))}
@@ -761,24 +871,24 @@ export default function AdminProductsPage() {
             </div>
 
             {/* Colors */}
-            <div className="space-y-2">
+            <div className="space-y-2.5">
               <Label className="text-xs text-zinc-400">Colors to Generate *</Label>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-3">
                 {COLORS.map((c) => (
                   <Button key={c.name} type="button" title={c.name}
                     onClick={() => toggleArr(selectedColors, c.name, (v) => form.setValue('selectedColors', v))}
-                    className={`w-8 h-8 rounded-full border-2 transition-all ${selectedColors.includes(c.name) ? 'border-amber-500 ring-2 ring-amber-500 ring-offset-1 ring-offset-zinc-950' : 'border-white/20 hover:scale-110'}`}
+                    className={`w-10 h-10 rounded-full border-2 transition-all flex-shrink-0 ${selectedColors.includes(c.name) ? 'border-amber-500 ring-2 ring-amber-500 ring-offset-1 ring-offset-zinc-950' : 'border-white/20 hover:scale-110'}`}
                     style={{ backgroundColor: c.hex }} />
                 ))}
               </div>
             </div>
 
-            <div className="flex gap-3 pt-2">
-              <Button type="submit" disabled={isPending} className="flex-1 bg-amber-500 hover:bg-amber-600 text-black">
+            <div className="flex flex-col-reverse sm:flex-row gap-3 pt-4">
+              <Button type="button" variant="outline" onClick={() => setShowForm(false)}
+                className="flex-1 border-white/10 text-zinc-400 bg-transparent h-10">Cancel</Button>
+              <Button type="submit" disabled={isPending} className="flex-1 bg-amber-500 hover:bg-amber-600 text-black h-10 font-medium">
                 {isPending ? 'Saving…' : editId ? 'Update Product' : 'Create Product'}
               </Button>
-              <Button type="button" variant="outline" onClick={() => setShowForm(false)}
-                className="border-white/10 text-zinc-400 bg-transparent">Cancel</Button>
             </div>
           </form>
         </SheetContent>

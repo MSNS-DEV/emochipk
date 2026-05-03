@@ -62,6 +62,15 @@ export function ProductDetails({ product }: ProductDetailsProps) {
   const colors      = useMemo(() => getProductColors(product), [product]);
   const allSizes    = useMemo(() => getProductSizes(product), [product]);
 
+  // Get color-specific images, fall back to general images
+  const displayImages = useMemo(() => {
+    const colorSpecificImages = product.images.filter((img) => img.colorTag === selectedColor);
+    return colorSpecificImages.length > 0 ? colorSpecificImages : product.images;
+  }, [product, selectedColor]);
+
+  // Reset selected image index if out of bounds
+  const validSelectedImage = selectedImage < displayImages.length ? selectedImage : 0;
+
   // Sizes available for selected color
   const sizesForColor = useMemo(
     () => getVariantsByColor(product, selectedColor).map((v) => v.sizeUK),
@@ -117,16 +126,16 @@ export function ProductDetails({ product }: ProductDetailsProps) {
   };
 
   return (
-    <div className="container mx-auto px-4 py-8 lg:py-12">
-      <div className="grid lg:grid-cols-2 gap-8 lg:gap-16">
+    <div className="container mx-auto px-4 py-6 sm:py-8 lg:py-12">
+      <div className="grid lg:grid-cols-2 gap-6 sm:gap-8 lg:gap-16">
 
         {/* ─── IMAGE GALLERY ─── */}
-        <div className="space-y-4">
+        <div className="space-y-3 sm:space-y-4">
           <div className="relative aspect-square rounded-2xl overflow-hidden bg-stone-100 dark:bg-stone-900">
-            {product.images[selectedImage] ? (
+            {displayImages[validSelectedImage] ? (
               <Image
-                src={product.images[selectedImage].url}
-                alt={product.images[selectedImage].altText ?? product.name}
+                src={displayImages[validSelectedImage].url}
+                alt={displayImages[validSelectedImage].altText ?? product.name}
                 fill
                 className="object-cover"
                 priority
@@ -159,19 +168,20 @@ export function ProductDetails({ product }: ProductDetailsProps) {
             </div>
           </div>
 
-          {/* Thumbnails */}
-          {product.images.length > 1 && (
+          {/* Thumbnails - Show color-specific images when available */}
+          {displayImages.length > 1 && (
             <div className="flex gap-3 overflow-x-auto pb-2">
-              {product.images.map((image, index) => (
+              {displayImages.map((image, index) => (
                 <button
-                  key={index}
+                  key={`${selectedColor}-${index}`}
                   onClick={() => setSelectedImage(index)}
                   className={cn(
                     'relative w-20 h-20 rounded-xl overflow-hidden border-2 shrink-0 transition-all',
-                    selectedImage === index
+                    validSelectedImage === index
                       ? 'border-amber-500 ring-2 ring-amber-500/30'
                       : 'border-transparent hover:border-border'
                   )}
+                  title={`View image ${index + 1}`}
                 >
                   <Image
                     src={image.url}
@@ -186,7 +196,7 @@ export function ProductDetails({ product }: ProductDetailsProps) {
         </div>
 
         {/* ─── PRODUCT INFO ─── */}
-        <div className="lg:sticky lg:top-24 lg:self-start space-y-6">
+        <div className="lg:sticky lg:top-24 lg:self-start space-y-4 sm:space-y-6">
 
           {/* Article Number */}
           <div className="flex items-center gap-2">
@@ -244,14 +254,14 @@ export function ProductDetails({ product }: ProductDetailsProps) {
           </div>
 
           {/* Color Selection */}
-          <div>
-            <div className="flex items-center justify-between mb-3">
+          <div className="space-y-2.5">
+            <div className="flex items-center justify-between">
               <span className="text-sm font-semibold">
                 Color:{' '}
                 <span className="font-normal text-muted-foreground">{selectedColor || 'Select'}</span>
               </span>
             </div>
-            <div className="flex flex-wrap gap-3">
+            <div className="flex flex-wrap gap-2 sm:gap-3">
               {colors.map((color) => (
                 <button
                   key={color.name}
@@ -263,7 +273,7 @@ export function ProductDetails({ product }: ProductDetailsProps) {
                     }
                   }}
                   className={cn(
-                    'w-10 h-10 rounded-full border-2 transition-all hover:scale-110',
+                    'w-11 h-11 sm:w-12 sm:h-12 rounded-full border-2 transition-all hover:scale-110 flex-shrink-0',
                     selectedColor === color.name
                       ? 'border-amber-500 ring-2 ring-amber-500 ring-offset-2'
                       : 'border-border'
@@ -276,8 +286,8 @@ export function ProductDetails({ product }: ProductDetailsProps) {
           </div>
 
           {/* Size Selection (UK) */}
-          <div>
-            <div className="flex items-center justify-between mb-3">
+          <div className="space-y-2.5">
+            <div className="flex items-center justify-between">
               <span className="text-sm font-semibold">
                 UK Size:{' '}
                 <span className="font-normal text-muted-foreground">{selectedSize ?? 'Select'}</span>
@@ -286,7 +296,7 @@ export function ProductDetails({ product }: ProductDetailsProps) {
                 Size Guide →
               </Link>
             </div>
-            <div className="flex flex-wrap gap-2">
+            <div className="grid grid-cols-4 sm:grid-cols-5 gap-2">
               {allSizes.sort((a, b) => Number(a) - Number(b)).map((size) => {
                 const available = sizesForColor.includes(size);
                 return (
@@ -295,7 +305,7 @@ export function ProductDetails({ product }: ProductDetailsProps) {
                     onClick={() => available && setSelectedSize(size)}
                     disabled={!available}
                     className={cn(
-                      'h-12 w-12 rounded-xl border-2 text-sm font-semibold transition-all',
+                      'h-11 sm:h-12 rounded-lg border-2 text-sm font-semibold transition-all',
                       selectedSize === size
                         ? 'border-amber-500 bg-amber-500 text-white'
                         : available
@@ -316,7 +326,7 @@ export function ProductDetails({ product }: ProductDetailsProps) {
                   <span
                     key={bs.branchId}
                     className={cn(
-                      'text-xs px-2 py-0.5 rounded-full border font-medium',
+                      'text-xs px-2.5 py-1 rounded-full border font-medium',
                       bs.qty > 0
                         ? 'bg-green-50 border-green-200 text-green-700 dark:bg-green-900/20 dark:border-green-800 dark:text-green-400'
                         : 'bg-red-50 border-red-200 text-red-600 dark:bg-red-900/20 dark:border-red-800 dark:text-red-400'
@@ -330,44 +340,48 @@ export function ProductDetails({ product }: ProductDetailsProps) {
           </div>
 
           {/* Quantity + Add to Cart */}
-          <div className="flex flex-col sm:flex-row gap-4">
-            {/* Quantity */}
-            <div className="flex items-center border border-border rounded-xl overflow-hidden">
-              <button
-                onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-                className="p-3 hover:bg-muted transition-colors disabled:opacity-50"
-                disabled={quantity <= 1}
+          <div className="space-y-3 sm:space-y-0">
+            <div className="flex flex-col sm:flex-row gap-3">
+              {/* Quantity */}
+              <div className="flex items-center border border-border rounded-lg overflow-hidden">
+                <button
+                  onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+                  className="h-11 px-3 hover:bg-muted transition-colors disabled:opacity-50"
+                  disabled={quantity <= 1}
+                  title="Decrease quantity"
+                >
+                  <Minus className="h-4 w-4" />
+                </button>
+                <span className="w-12 text-center font-bold">{quantity}</span>
+                <button
+                  onClick={() => setQuantity((q) => Math.min(10, q + 1))}
+                  className="h-11 px-3 hover:bg-muted transition-colors"
+                  title="Increase quantity"
+                >
+                  <Plus className="h-4 w-4" />
+                </button>
+              </div>
+
+              {/* Add to Cart */}
+              <Button
+                size="lg"
+                className="flex-1 h-11 bg-stone-950 hover:bg-stone-800 dark:bg-amber-500 dark:hover:bg-amber-600 dark:text-stone-950 font-semibold text-base"
+                onClick={handleAddToCart}
+                disabled={!selectedVariant || !inStock}
               >
-                <Minus className="h-4 w-4" />
-              </button>
-              <span className="w-12 text-center font-bold">{quantity}</span>
-              <button
-                onClick={() => setQuantity((q) => Math.min(10, q + 1))}
-                className="p-3 hover:bg-muted transition-colors"
-              >
-                <Plus className="h-4 w-4" />
-              </button>
+                {!selectedSize
+                  ? 'Select a Size'
+                  : !inStock
+                  ? 'Out of Stock'
+                  : 'Add to Cart'}
+              </Button>
+
+              {/* Wishlist */}
+              <Button size="lg" variant="outline" className="h-11 w-11 p-0 flex-shrink-0">
+                <Heart className="h-5 w-5" />
+                <span className="sr-only">Add to Wishlist</span>
+              </Button>
             </div>
-
-            {/* Add to Cart */}
-            <Button
-              size="lg"
-              className="flex-1 bg-stone-950 hover:bg-stone-800 dark:bg-amber-500 dark:hover:bg-amber-600 dark:text-stone-950 text-base font-semibold"
-              onClick={handleAddToCart}
-              disabled={!selectedVariant || !inStock}
-            >
-              {!selectedSize
-                ? 'Select a Size'
-                : !inStock
-                ? 'Out of Stock'
-                : 'Add to Cart'}
-            </Button>
-
-            {/* Wishlist */}
-            <Button size="lg" variant="outline" className="px-4 shrink-0">
-              <Heart className="h-5 w-5" />
-              <span className="sr-only">Add to Wishlist</span>
-            </Button>
           </div>
 
           {/* In-stock status */}
@@ -400,16 +414,16 @@ export function ProductDetails({ product }: ProductDetailsProps) {
           </div>
 
           {/* Feature Pills */}
-          <div className="grid grid-cols-3 gap-3 py-4 border-y border-border">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3 py-4 border-y border-border">
             {[
               { icon: Truck,     label: 'Free Shipping', sub: 'Orders above PKR 5,000' },
               { icon: RefreshCw, label: '7-Day Exchange', sub: 'Hassle-free policy' },
               { icon: Shield,    label: 'Secure Checkout', sub: 'COD · JazzCash · Raast' },
             ].map((f) => (
-              <div key={f.label} className="flex flex-col items-center text-center gap-1.5">
+              <div key={f.label} className="flex flex-col items-center text-center gap-1">
                 <f.icon className="h-5 w-5 text-muted-foreground" />
                 <span className="text-xs font-medium text-foreground">{f.label}</span>
-                <span className="text-[10px] text-muted-foreground">{f.sub}</span>
+                <span className="text-[10px] text-muted-foreground line-clamp-2">{f.sub}</span>
               </div>
             ))}
           </div>
