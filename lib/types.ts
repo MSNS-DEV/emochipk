@@ -79,6 +79,7 @@ export interface ProductImage {
   altText?: string;
   isPrimary: boolean;
   sortOrder: number;
+  colorTag?: string; // Color variant (e.g., 'Black', 'Brown') for color-specific images
 }
 
 export interface ProductVariant {

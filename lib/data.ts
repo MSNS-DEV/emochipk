@@ -41,7 +41,7 @@ export type CatalogProduct = {
   manufacturingCity?: string | null;
   averageRating?: number | null;
   reviewCount?: number | null;
-  images: { url: string; altText?: string | null; isPrimary: boolean }[];
+  images: { url: string; altText?: string | null; isPrimary: boolean; colorTag?: string | null }[];
   variants: CatalogVariant[];
   _count?: { reviews: number };
 };
