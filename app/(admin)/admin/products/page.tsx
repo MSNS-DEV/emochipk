@@ -79,11 +79,16 @@ const SIZES_MEN = ['6', '7', '8', '9', '10', '11'];
 const SIZES_WOMEN = ['3', '4', '5', '6', '7', '8'];
 const SIZES_KIDS = ['10K', '11K', '12K', '1', '2', '3'];
 const COLORS = [
-  { name: 'Black', hex: '#1a1a1a' }, { name: 'Brown', hex: '#8B4513' },
-  { name: 'Tan', hex: '#D2B48C' }, { name: 'White', hex: '#FFFFFF' },
-  { name: 'Grey', hex: '#808080' }, { name: 'Navy', hex: '#1a1a3e' },
-  { name: 'Gold', hex: '#CFB53B' }, { name: 'Beige', hex: '#F5F0E8' },
-  { name: 'Cognac', hex: '#9A463D' }, { name: 'Olive', hex: '#808000' },
+  { name: 'Black', hex: '#1a1a1a', bgClass: 'bg-[#1a1a1a]' },
+  { name: 'Brown', hex: '#8B4513', bgClass: 'bg-[#8B4513]' },
+  { name: 'Tan', hex: '#D2B48C', bgClass: 'bg-[#D2B48C]' },
+  { name: 'White', hex: '#FFFFFF', bgClass: 'bg-[#FFFFFF]' },
+  { name: 'Grey', hex: '#808080', bgClass: 'bg-[#808080]' },
+  { name: 'Navy', hex: '#1a1a3e', bgClass: 'bg-[#1a1a3e]' },
+  { name: 'Gold', hex: '#CFB53B', bgClass: 'bg-[#CFB53B]' },
+  { name: 'Beige', hex: '#F5F0E8', bgClass: 'bg-[#F5F0E8]' },
+  { name: 'Cognac', hex: '#9A463D', bgClass: 'bg-[#9A463D]' },
+  { name: 'Olive', hex: '#808000', bgClass: 'bg-[#808000]' },
 ];
 
 const sizeChart: Record<string, { us: string; eu: string; cm: string }> = {
@@ -251,7 +256,7 @@ function ImageManager({ productId, onAdded }: { productId: string; onAdded: () =
               <div className="flex items-center gap-2">
                 <span className="text-xs text-zinc-500">{colorLabel}</span>
                 {colorLabel !== 'General' && (
-                  <div className="w-4 h-4 rounded-full border border-white/10" style={{ backgroundColor: COLORS.find((c) => c.name === colorLabel)?.hex || '#666' }} />
+                  <div className={`w-4 h-4 rounded-full border border-white/10 ${COLORS.find((c) => c.name === colorLabel)?.bgClass || 'bg-[#666]'}`} />
                 )}
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
@@ -338,11 +343,11 @@ function ImageManager({ productId, onAdded }: { productId: string; onAdded: () =
       <div className="space-y-2">
         <Label className="text-xs text-zinc-400">Assign to Color (Optional)</Label>
         <div className="flex flex-wrap gap-2">
-          {COLORS.map((c) => (
+          {COLORS.filter((c) => product?.variants?.some((v) => v.color === c.name)).map((c) => (
             <button key={c.name} type="button" title={c.name}
               onClick={() => setSelectedColor(selectedColor === c.name ? '' : c.name)}
-              className={`w-8 h-8 sm:w-9 sm:h-9 rounded-full border-2 transition-all ${selectedColor === c.name ? 'border-amber-500 ring-2 ring-amber-500 ring-offset-1 ring-offset-zinc-950' : 'border-white/20 hover:scale-110'}`}
-              style={{ backgroundColor: c.hex }} />
+              className={`w-8 h-8 sm:w-9 sm:h-9 rounded-full border-2 transition-all ${selectedColor === c.name ? 'border-amber-500 ring-2 ring-amber-500 ring-offset-1 ring-offset-zinc-950' : 'border-white/20 hover:scale-110'} ${c.bgClass}`}
+               />
           ))}
         </div>
         {selectedColor && <p className="text-xs text-amber-400">Images will show when customers select {selectedColor}</p>}
@@ -433,8 +438,8 @@ export default function AdminProductsPage() {
     onError: (e) => toast.error(e.message),
   });
 
-  const deleteMutation = api.product.delete.useMutation({
-    onSuccess: () => { toast.success('Product deactivated.'); void utils.product.adminList.invalidate(); },
+  const toggleActiveMutation = api.product.toggleActive.useMutation({
+    onSuccess: () => { toast.success('Product status updated.'); void utils.product.adminList.invalidate(); },
     onError: (e) => toast.error(e.message),
   });
 
@@ -661,7 +666,7 @@ export default function AdminProductsPage() {
                         className="h-9 w-9 p-0 text-zinc-400 hover:text-amber-400">
                         <ImagePlus className="h-4 w-4" />
                       </Button>
-                      <Button variant="ghost" size="sm" onClick={() => deleteMutation.mutate(p.id)}
+                      <Button variant="ghost" size="sm" onClick={() => toggleActiveMutation.mutate(p.id)}
                         title={p.isActive ? 'Deactivate' : 'Activate'}
                         className="h-9 w-9 p-0 text-zinc-400 hover:text-red-400">
                         {p.isActive ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -732,7 +737,7 @@ export default function AdminProductsPage() {
                     <ImagePlus className="h-4 w-4 mr-1" />
                     Images
                   </Button>
-                  <Button variant="outline" size="sm" onClick={() => deleteMutation.mutate(p.id)}
+                  <Button variant="outline" size="sm" onClick={() => toggleActiveMutation.mutate(p.id)}
                     className="h-9 w-9 p-0 border-white/10 text-zinc-400">
                     {p.isActive ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </Button>

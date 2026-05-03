@@ -255,10 +255,11 @@ export const productRouter = createTRPCRouter({
     });
   }),
 
-  /** Soft delete — set isActive = false (admin) */
-  delete: adminProcedure.input(z.string()).mutation(({ ctx, input }) =>
-    ctx.db.product.update({ where: { id: input }, data: { isActive: false } })
-  ),
+  /** Toggle active status (admin) */
+  toggleActive: adminProcedure.input(z.string()).mutation(async ({ ctx, input }) => {
+    const product = await ctx.db.product.findUniqueOrThrow({ where: { id: input } });
+    return ctx.db.product.update({ where: { id: input }, data: { isActive: !product.isActive } });
+  }),
 
   /** Add image to product (admin) */
   addImage: adminProcedure
