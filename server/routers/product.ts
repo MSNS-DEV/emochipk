@@ -322,34 +322,96 @@ export const productRouter = createTRPCRouter({
       });
     }),
 
-  /** Paginated list for admin table */
+  /** Get all unique brands (derived from product name prefix) for filter dropdown */
+  getBrands: adminProcedure.query(async ({ ctx }) => {
+    const products = await ctx.db.product.findMany({
+      select: { name: true },
+      distinct: ["name"],
+    });
+    // Extract brand from name (first word before space)
+    const brandSet = new Set<string>();
+    for (const p of products) {
+      const parts = p.name.split(" ");
+      if (parts.length > 0) {
+        brandSet.add(parts[0]);
+      }
+    }
+    return Array.from(brandSet).sort();
+  }),
+
+  /** Get all unique colors across variants for filter dropdown */
+  getColors: adminProcedure.query(async ({ ctx }) => {
+    const variants = await ctx.db.productVariant.findMany({
+      select: { color: true, colorHex: true },
+      distinct: ["color"],
+      orderBy: { color: "asc" },
+    });
+    return variants;
+  }),
+
+  /** Paginated list for admin table — with advanced filters */
   adminList: adminProcedure
     .input(z.object({
       page: z.number().default(1),
       pageSize: z.number().default(20),
       search: z.string().optional(),
       category: z.enum(["MEN", "WOMEN", "KIDS"]).optional(),
+      style: z.enum(["LOAFERS", "OXFORD", "MOCCASINS", "PESHAWARI", "SANDALS", "SNEAKERS"]).optional(),
+      brand: z.string().optional(),
+      color: z.string().optional(),
       isActive: z.boolean().optional(),
+      priceMin: z.number().optional(),
+      priceMax: z.number().optional(),
+      sortBy: z.enum(["newest", "oldest", "name-asc", "name-desc", "price-asc", "price-desc", "article-asc"]).default("newest"),
     }))
     .query(async ({ ctx, input }) => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const where: Record<string, any> = {
         ...(input.isActive !== undefined && { isActive: input.isActive }),
         ...(input.category && { category: input.category }),
+        ...(input.style && { style: input.style }),
+        ...(input.brand && {
+          name: { startsWith: input.brand, mode: "insensitive" },
+        }),
+        ...(input.color && {
+          variants: { some: { color: { equals: input.color, mode: "insensitive" } } },
+        }),
+        ...(input.priceMin !== undefined || input.priceMax !== undefined
+          ? {
+            basePrice: {
+              ...(input.priceMin !== undefined && { gte: input.priceMin }),
+              ...(input.priceMax !== undefined && { lte: input.priceMax }),
+            },
+          }
+          : {}),
         ...(input.search && {
           OR: [
             { name: { contains: input.search, mode: "insensitive" } },
             { articleNumber: { contains: input.search, mode: "insensitive" } },
+            { description: { contains: input.search, mode: "insensitive" } },
           ],
         }),
       };
+
+      // Sort options
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let orderBy: any = { createdAt: "desc" };
+      switch (input.sortBy) {
+        case "oldest": orderBy = { createdAt: "asc" }; break;
+        case "name-asc": orderBy = { name: "asc" }; break;
+        case "name-desc": orderBy = { name: "desc" }; break;
+        case "price-asc": orderBy = { basePrice: "asc" }; break;
+        case "price-desc": orderBy = { basePrice: "desc" }; break;
+        case "article-asc": orderBy = { articleNumber: "asc" }; break;
+      }
+
       const [total, items] = await Promise.all([
         ctx.db.product.count({ where }),
         ctx.db.product.findMany({
           where,
           skip: (input.page - 1) * input.pageSize,
           take: input.pageSize,
-          orderBy: { createdAt: "desc" },
+          orderBy,
           include: {
             images: { orderBy: [{ isPrimary: "desc" }, { sortOrder: "asc" }], take: 1 },
             _count: { select: { variants: true, reviews: true } },

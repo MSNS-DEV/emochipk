@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useCallback, useMemo } from 'react';
+import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -21,6 +21,7 @@ import {
 import {
   Plus, Search, Edit, Trash2, Package, Eye, EyeOff, ImagePlus, X, Upload, Loader2,
   ChevronLeft, ChevronRight, Star, Tag, Layers, RefreshCw, AlertCircle,
+  Filter, SlidersHorizontal, ArrowUpDown, Hash,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -347,7 +348,7 @@ function ImageManager({ productId, onAdded }: { productId: string; onAdded: () =
             <button key={c.name} type="button" title={c.name}
               onClick={() => setSelectedColor(selectedColor === c.name ? '' : c.name)}
               className={`w-8 h-8 sm:w-9 sm:h-9 rounded-full border-2 transition-all ${selectedColor === c.name ? 'border-amber-500 ring-2 ring-amber-500 ring-offset-1 ring-offset-zinc-950' : 'border-white/20 hover:scale-110'} ${c.bgClass}`}
-               />
+            />
           ))}
         </div>
         {selectedColor && <p className="text-xs text-amber-400">Images will show when customers select {selectedColor}</p>}
@@ -402,18 +403,42 @@ function ProductStatCard({ icon: Icon, label, value, accent }: {
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function AdminProductsPage() {
+  const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
   const [editId, setEditId] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [showImageDialog, setShowImageDialog] = useState<string | null>(null);
+  const [showFilters, setShowFilters] = useState(false);
+
+  // Filters
   const [categoryFilter, setCategoryFilter] = useState<string>('ALL');
+  const [styleFilter, setStyleFilter] = useState<string>('ALL');
+  const [brandFilter, setBrandFilter] = useState<string>('ALL');
+  const [colorFilter, setColorFilter] = useState<string>('ALL');
+  const [sortBy, setSortBy] = useState<string>('newest');
+
+  // Debounced search
+  useEffect(() => {
+    const timer = setTimeout(() => { setSearch(searchInput); setPage(1); }, 350);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
 
   const utils = api.useUtils();
+
+  // Fetch filter options
+  const { data: brands } = api.product.getBrands.useQuery(undefined, { staleTime: 60000 });
+  const { data: colors } = api.product.getColors.useQuery(undefined, { staleTime: 60000 });
+
   const { data, isLoading } = api.product.adminList.useQuery({
-    page, pageSize: 20,
+    page, pageSize,
     search: search || undefined,
     category: categoryFilter !== 'ALL' ? categoryFilter as 'MEN' | 'WOMEN' | 'KIDS' : undefined,
+    style: styleFilter !== 'ALL' ? styleFilter as any : undefined,
+    brand: brandFilter !== 'ALL' ? brandFilter : undefined,
+    color: colorFilter !== 'ALL' ? colorFilter : undefined,
+    sortBy: sortBy as any,
   });
 
   // Stats
@@ -567,28 +592,148 @@ export default function AdminProductsPage() {
         <ProductStatCard icon={Tag} label="On Sale" value={stats.onSale} accent="bg-purple-500/20 text-purple-400" />
       </div>
 
-      {/* Category Tabs + Search */}
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="flex gap-1 bg-zinc-900/50 p-1 rounded-xl border border-white/5 w-fit">
-          {['ALL', ...CATEGORIES].map((cat) => (
-            <button
-              key={cat}
-              onClick={() => { setCategoryFilter(cat); setPage(1); }}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${categoryFilter === cat
+      {/* Category Tabs + Search + Filter Toggle */}
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="flex gap-1 bg-zinc-900/50 p-1 rounded-xl border border-white/5 w-fit">
+            {['ALL', ...CATEGORIES].map((cat) => (
+              <Button
+                key={cat}
+                onClick={() => { setCategoryFilter(cat); setPage(1); }}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${categoryFilter === cat
                   ? 'bg-zinc-800 text-white shadow-sm'
                   : 'text-zinc-500 hover:text-zinc-300'
-                }`}
-            >
-              {cat === 'ALL' ? 'All' : cat}
-            </button>
-          ))}
+                  }`}
+              >
+                {cat === 'ALL' ? 'All' : cat}
+              </Button>
+            ))}
+          </div>
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500" />
+            <Input placeholder="Search by name, article # or description…" value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              className="pl-9 bg-zinc-900 border-white/10 text-white" />
+            {searchInput && (
+              <Button onClick={() => { setSearchInput(''); setSearch(''); }}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-white">
+                <X className="h-3.5 w-3.5" />
+              </Button>
+            )}
+          </div>
+          <Button variant="outline" size="sm"
+            onClick={() => setShowFilters(!showFilters)}
+            className={`border-white/10 bg-transparent text-xs flex-shrink-0 gap-1.5 ${showFilters ? 'text-amber-400 border-amber-500/30' : 'text-zinc-400 hover:text-white'}`}>
+            <SlidersHorizontal className="h-3.5 w-3.5" />
+            Filters
+            {(styleFilter !== 'ALL' || brandFilter !== 'ALL' || colorFilter !== 'ALL') && (
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+            )}
+          </Button>
         </div>
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500" />
-          <Input placeholder="Search by name or article number…" value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-            className="pl-9 bg-zinc-900 border-white/10 text-white" />
-        </div>
+
+        {/* Advanced Filters Row */}
+        {showFilters && (
+          <div className="flex flex-wrap gap-3 p-3 bg-zinc-900/50 border border-white/5 rounded-xl animate-in slide-in-from-top-2 duration-200">
+            {/* Style Filter */}
+            <div className="space-y-1">
+              <label className="text-[10px] text-zinc-500 uppercase tracking-wider">Type / Style</label>
+              <Select value={styleFilter} onValueChange={(v) => { setStyleFilter(v); setPage(1); }}>
+                <SelectTrigger className="w-[140px] h-8 bg-zinc-800 border-white/10 text-xs text-white">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-zinc-900 border-white/10">
+                  <SelectItem value="ALL" className="text-white text-xs">All Styles</SelectItem>
+                  {STYLES.map((s) => (
+                    <SelectItem key={s} value={s} className="text-white text-xs">{s.replace(/_/g, ' ')}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Brand Filter */}
+            <div className="space-y-1">
+              <label className="text-[10px] text-zinc-500 uppercase tracking-wider">Brand</label>
+              <Select value={brandFilter} onValueChange={(v) => { setBrandFilter(v); setPage(1); }}>
+                <SelectTrigger className="w-[140px] h-8 bg-zinc-800 border-white/10 text-xs text-white">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-zinc-900 border-white/10 max-h-60">
+                  <SelectItem value="ALL" className="text-white text-xs">All Brands</SelectItem>
+                  {brands?.map((b) => (
+                    <SelectItem key={b} value={b} className="text-white text-xs">{b}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Color Filter */}
+            <div className="space-y-1">
+              <label className="text-[10px] text-zinc-500 uppercase tracking-wider">Color</label>
+              <Select value={colorFilter} onValueChange={(v) => { setColorFilter(v); setPage(1); }}>
+                <SelectTrigger className="w-[140px] h-8 bg-zinc-800 border-white/10 text-xs text-white">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-zinc-900 border-white/10 max-h-60">
+                  <SelectItem value="ALL" className="text-white text-xs">All Colors</SelectItem>
+                  {colors?.map((c) => (
+                    <SelectItem key={c.color} value={c.color} className="text-white text-xs">
+                      <span className="flex items-center gap-2">
+                        <span className={`w-3 h-3 rounded-full border border-white/20 flex-shrink-0 ${COLORS.find(col => col.name === c.color)?.bgClass || ''}`} />
+                        {c.color}
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Sort */}
+            <div className="space-y-1">
+              <label className="text-[10px] text-zinc-500 uppercase tracking-wider">Sort By</label>
+              <Select value={sortBy} onValueChange={(v) => { setSortBy(v); setPage(1); }}>
+                <SelectTrigger className="w-[150px] h-8 bg-zinc-800 border-white/10 text-xs text-white">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-zinc-900 border-white/10">
+                  <SelectItem value="newest" className="text-white text-xs">Newest First</SelectItem>
+                  <SelectItem value="oldest" className="text-white text-xs">Oldest First</SelectItem>
+                  <SelectItem value="name-asc" className="text-white text-xs">Name A→Z</SelectItem>
+                  <SelectItem value="name-desc" className="text-white text-xs">Name Z→A</SelectItem>
+                  <SelectItem value="price-asc" className="text-white text-xs">Price Low→High</SelectItem>
+                  <SelectItem value="price-desc" className="text-white text-xs">Price High→Low</SelectItem>
+                  <SelectItem value="article-asc" className="text-white text-xs">Article # A→Z</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Per page */}
+            <div className="space-y-1">
+              <label className="text-[10px] text-zinc-500 uppercase tracking-wider">Per Page</label>
+              <Select value={String(pageSize)} onValueChange={(v) => { setPageSize(Number(v)); setPage(1); }}>
+                <SelectTrigger className="w-[80px] h-8 bg-zinc-800 border-white/10 text-xs text-white">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-zinc-900 border-white/10">
+                  {[10, 25, 50, 100].map(n => (
+                    <SelectItem key={n} value={String(n)} className="text-white text-xs">{n}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Clear All Filters */}
+            {(styleFilter !== 'ALL' || brandFilter !== 'ALL' || colorFilter !== 'ALL' || sortBy !== 'newest') && (
+              <div className="flex items-end">
+                <Button variant="ghost" size="sm"
+                  onClick={() => { setStyleFilter('ALL'); setBrandFilter('ALL'); setColorFilter('ALL'); setSortBy('newest'); setPage(1); }}
+                  className="h-8 text-xs text-red-400 hover:text-red-300">
+                  <X className="h-3 w-3 mr-1" /> Clear
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Table - Responsive Card View on Mobile */}
@@ -598,6 +743,7 @@ export default function AdminProductsPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-white/5 text-xs text-zinc-500 uppercase tracking-wider">
+                <th className="text-center px-2 py-3 w-12">#</th>
                 <th className="text-left px-4 py-3">Product</th>
                 <th className="text-left px-4 py-3 hidden sm:table-cell">Category</th>
                 <th className="text-right px-4 py-3">Price</th>
@@ -607,10 +753,13 @@ export default function AdminProductsPage() {
             </thead>
             <tbody className="divide-y divide-white/5">
               {isLoading && (
-                <tr><td colSpan={5} className="text-center py-10 text-zinc-500">Loading…</td></tr>
+                <tr><td colSpan={6} className="text-center py-10 text-zinc-500">Loading…</td></tr>
               )}
-              {data?.items.map((p) => (
+              {data?.items.map((p, idx) => (
                 <tr key={p.id} className={`hover:bg-white/[0.02] transition-colors ${!p.isActive ? 'opacity-50' : ''}`}>
+                  <td className="px-2 py-3 text-center">
+                    <span className="text-[10px] text-zinc-600 font-mono">{(page - 1) * pageSize + idx + 1}</span>
+                  </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
                       <div className="w-12 h-12 rounded-lg bg-zinc-800 flex items-center justify-center overflow-hidden flex-shrink-0 border border-white/5">
@@ -704,7 +853,7 @@ export default function AdminProductsPage() {
                     </div>
                   </div>
                 </div>
-                
+
                 <div className="flex items-center justify-between pt-2 border-t border-white/5">
                   <div>
                     <div className="text-sm font-medium text-amber-400">
@@ -752,17 +901,49 @@ export default function AdminProductsPage() {
           </div>
         </div>
         {/* Pagination */}
-        {data && data.totalPages > 1 && (
-          <div className="flex items-center justify-between px-4 py-3 border-t border-white/5">
-            <span className="text-xs text-zinc-500">Page {page} of {data.totalPages} · {data.total} products</span>
-            <div className="flex gap-2">
+        {data && data.totalPages > 0 && (
+          <div className="flex flex-col sm:flex-row items-center justify-between px-4 py-3 border-t border-white/5 gap-3">
+            <span className="text-xs text-zinc-500">
+              Showing {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, data.total)} of {data.total} products
+            </span>
+            <div className="flex items-center gap-1">
+              <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(1)}
+                className="text-xs border-white/10 bg-transparent text-zinc-400 h-8 w-8 p-0" title="First page">
+                «
+              </Button>
               <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(p => p - 1)}
-                className="text-xs border-white/10 bg-transparent text-zinc-400">
+                className="text-xs border-white/10 bg-transparent text-zinc-400 h-8 w-8 p-0">
                 <ChevronLeft className="h-3.5 w-3.5" />
               </Button>
+              {/* Page numbers */}
+              {Array.from({ length: Math.min(7, data.totalPages) }, (_, i) => {
+                let pageNum: number;
+                if (data.totalPages <= 7) {
+                  pageNum = i + 1;
+                } else if (page <= 4) {
+                  pageNum = i + 1;
+                } else if (page >= data.totalPages - 3) {
+                  pageNum = data.totalPages - 6 + i;
+                } else {
+                  pageNum = page - 3 + i;
+                }
+                return (
+                  <button key={pageNum} onClick={() => setPage(pageNum)}
+                    className={`h-8 w-8 rounded text-xs font-medium transition-all ${pageNum === page
+                      ? 'bg-amber-500 text-black'
+                      : 'text-zinc-400 hover:text-white hover:bg-white/5'
+                      }`}>
+                    {pageNum}
+                  </button>
+                );
+              })}
               <Button variant="outline" size="sm" disabled={page >= data.totalPages} onClick={() => setPage(p => p + 1)}
-                className="text-xs border-white/10 bg-transparent text-zinc-400">
+                className="text-xs border-white/10 bg-transparent text-zinc-400 h-8 w-8 p-0">
                 <ChevronRight className="h-3.5 w-3.5" />
+              </Button>
+              <Button variant="outline" size="sm" disabled={page >= data.totalPages} onClick={() => setPage(data.totalPages)}
+                className="text-xs border-white/10 bg-transparent text-zinc-400 h-8 w-8 p-0" title="Last page">
+                »
               </Button>
             </div>
           </div>
@@ -882,8 +1063,7 @@ export default function AdminProductsPage() {
                 {COLORS.map((c) => (
                   <Button key={c.name} type="button" title={c.name}
                     onClick={() => toggleArr(selectedColors, c.name, (v) => form.setValue('selectedColors', v))}
-                    className={`w-10 h-10 rounded-full border-2 transition-all flex-shrink-0 ${selectedColors.includes(c.name) ? 'border-amber-500 ring-2 ring-amber-500 ring-offset-1 ring-offset-zinc-950' : 'border-white/20 hover:scale-110'}`}
-                    style={{ backgroundColor: c.hex }} />
+                    className={`w-10 h-10 rounded-full border-2 transition-all flex-shrink-0 ${selectedColors.includes(c.name) ? 'border-amber-500 ring-2 ring-amber-500 ring-offset-1 ring-offset-zinc-950' : 'border-white/20 hover:scale-110'} ${c.bgClass}`} />
                 ))}
               </div>
             </div>
