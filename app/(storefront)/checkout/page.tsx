@@ -5,13 +5,12 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { ChevronLeft, CreditCard, Truck, Building2, Smartphone, Banknote, Lock, ShoppingBag } from 'lucide-react';
+import { ChevronLeft, CreditCard, Truck, Building2, Smartphone, Banknote, Lock, ShoppingBag, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Checkbox } from '@/components/ui/checkbox';
 import {
   Select,
   SelectContent,
@@ -22,7 +21,7 @@ import {
 import { useCart } from '@/lib/cart-context';
 import { useAuth } from '@/lib/auth-context';
 import { formatPrice } from '@/lib/data';
-import type { PaymentMethod } from '@/lib/types';
+import { api } from '@/lib/trpc';
 
 const pakistanProvinces = [
   'Punjab',
@@ -34,20 +33,22 @@ const pakistanProvinces = [
   'Gilgit-Baltistan',
 ];
 
-const paymentMethods: { id: PaymentMethod; name: string; icon: typeof CreditCard; description: string }[] = [
+type PaymentMethodId = 'COD' | 'JAZZCASH' | 'EASYPAISA' | 'RAAST' | 'CARD';
+
+const paymentMethods: { id: PaymentMethodId; name: string; icon: typeof CreditCard; description: string }[] = [
   { id: 'COD', name: 'Cash on Delivery', icon: Banknote, description: 'Pay when you receive your order' },
   { id: 'JAZZCASH', name: 'JazzCash', icon: Smartphone, description: 'Pay with JazzCash mobile wallet' },
   { id: 'EASYPAISA', name: 'EasyPaisa', icon: Smartphone, description: 'Pay with EasyPaisa mobile wallet' },
-  { id: 'BANK_TRANSFER', name: 'Bank Transfer', icon: Building2, description: 'Direct bank transfer' },
+  { id: 'RAAST', name: 'Raast / Bank Transfer', icon: Building2, description: 'Instant bank-to-bank transfer' },
+  { id: 'CARD', name: 'Credit / Debit Card', icon: CreditCard, description: 'Visa, Mastercard via Safepay' },
 ];
 
 export default function CheckoutPage() {
   const router = useRouter();
   const { cart, itemCount, clearCart } = useCart();
-  const { user, isAuthenticated } = useAuth();
+  const { user } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('COD');
-  const [sameAsBilling, setSameAsBilling] = useState(true);
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethodId>('COD');
 
   const [formData, setFormData] = useState({
     email: user?.email || '',
@@ -59,8 +60,22 @@ export default function CheckoutPage() {
     city: '',
     province: '',
     postalCode: '',
-    saveInfo: false,
     notes: '',
+  });
+
+  // Fetch active branches for order placement
+  const { data: branches } = api.branch.getAll.useQuery();
+
+  const createOrder = api.order.create.useMutation({
+    onSuccess: (order) => {
+      clearCart();
+      toast.success('Order placed!', { description: `Order #${order.orderNumber}` });
+      router.push(`/order-success?order=${order.orderNumber}`);
+    },
+    onError: (err) => {
+      toast.error(err.message || 'Failed to place order. Please try again.');
+      setIsSubmitting(false);
+    },
   });
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -73,27 +88,56 @@ export default function CheckoutPage() {
     setIsSubmitting(true);
 
     // Validate required fields
-    if (!formData.email || !formData.phone || !formData.firstName || !formData.lastName ||
+    if (!formData.email || !formData.phone || !formData.firstName ||
         !formData.address || !formData.city || !formData.province) {
       toast.error('Please fill in all required fields');
       setIsSubmitting(false);
       return;
     }
 
-    // Simulate order submission
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    if (cart.items.length === 0) {
+      toast.error('Your cart is empty');
+      setIsSubmitting(false);
+      return;
+    }
 
-    // Generate order number
-    const orderNumber = `EM-${Date.now().toString(36).toUpperCase()}`;
+    // Pick first available branch (Pasrur by default)
+    const branch = branches?.[0];
+    if (!branch) {
+      toast.error('No branch available. Please try again later.');
+      setIsSubmitting(false);
+      return;
+    }
 
-    // Clear cart and redirect to success
-    clearCart();
-    
-    toast.success('Order placed successfully!', {
-      description: `Order #${orderNumber}`,
+    // Build order items — each cart item must have a real DB variantId
+    const items = cart.items
+      .filter(i => i.variantId && !i.variantId.startsWith('item-'))
+      .map(i => ({ variantId: i.variantId, quantity: i.quantity }));
+
+    if (items.length === 0) {
+      // Fallback: can't submit without valid variant IDs (guest cart may have stale items)
+      toast.error('Unable to process order items. Please re-add products to your cart.');
+      setIsSubmitting(false);
+      return;
+    }
+
+    createOrder.mutate({
+      branchId: branch.id,
+      paymentMethod,
+      shippingAddress: {
+        fullName: `${formData.firstName} ${formData.lastName}`.trim(),
+        phone: formData.phone,
+        street: `${formData.address}${formData.apartment ? ', ' + formData.apartment : ''}`,
+        city: formData.city,
+        province: formData.province,
+        postalCode: formData.postalCode || undefined,
+        country: 'Pakistan',
+      },
+      notes: formData.notes || undefined,
+      discountAmount: cart.discountAmount,
+      shippingCost: cart.shippingAmount,
+      items,
     });
-
-    router.push(`/order-success?order=${orderNumber}`);
   };
 
   if (itemCount === 0) {
@@ -134,15 +178,6 @@ export default function CheckoutPage() {
               {/* Contact Information */}
               <div className="bg-card rounded-lg border border-border p-6">
                 <h2 className="font-serif text-xl font-semibold mb-6">Contact Information</h2>
-                
-                {!isAuthenticated && (
-                  <p className="text-sm text-muted-foreground mb-4">
-                    Already have an account?{' '}
-                    <Link href="/login?redirect=/checkout" className="text-primary hover:underline">
-                      Sign in
-                    </Link>
-                  </p>
-                )}
 
                 <div className="grid gap-4">
                   <div className="grid sm:grid-cols-2 gap-4">
@@ -157,13 +192,12 @@ export default function CheckoutPage() {
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="lastName">Last Name *</Label>
+                      <Label htmlFor="lastName">Last Name</Label>
                       <Input
                         id="lastName"
                         name="lastName"
                         value={formData.lastName}
                         onChange={handleInputChange}
-                        required
                       />
                     </div>
                   </div>
@@ -265,7 +299,7 @@ export default function CheckoutPage() {
                 <h2 className="font-serif text-xl font-semibold mb-6">Payment Method</h2>
                 <RadioGroup
                   value={paymentMethod}
-                  onValueChange={(value) => setPaymentMethod(value as PaymentMethod)}
+                  onValueChange={(value) => setPaymentMethod(value as PaymentMethodId)}
                   className="grid gap-3"
                 >
                   {paymentMethods.map((method) => (
@@ -289,7 +323,7 @@ export default function CheckoutPage() {
 
                 {paymentMethod === 'COD' && (
                   <p className="mt-4 p-3 rounded-lg bg-amber-50 text-amber-800 text-sm dark:bg-amber-900/20 dark:text-amber-200">
-                    A COD verification call will be made before dispatch. PKR 50 COD fee applies.
+                    A verification call will be made before dispatch to confirm your order. PKR 50 COD fee applies.
                   </p>
                 )}
               </div>
@@ -312,9 +346,13 @@ export default function CheckoutPage() {
                   type="submit"
                   size="lg"
                   className="w-full text-base"
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || createOrder.isPending}
                 >
-                  {isSubmitting ? 'Processing...' : `Place Order - ${formatPrice(cart.total)}`}
+                  {(isSubmitting || createOrder.isPending) ? (
+                    <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Processing…</>
+                  ) : (
+                    `Place Order — ${formatPrice(cart.total + (paymentMethod === 'COD' ? 50 : 0))}`
+                  )}
                 </Button>
                 <p className="text-xs text-center text-muted-foreground mt-3 flex items-center justify-center gap-1">
                   <Lock className="h-3 w-3" />
@@ -334,10 +372,17 @@ export default function CheckoutPage() {
                 {cart.items.map((item) => (
                   <div key={item.id} className="flex gap-4">
                     <div className="relative w-16 h-16 rounded-lg overflow-hidden bg-secondary/30 shrink-0">
-                      {item.variant?.product?.images[0] ? (
+                      {(item.variant as any)?.product?.images?.[0] ? (
                         <Image
-                          src={item.variant.product.images[0].url}
-                          alt={item.variant.product.name}
+                          src={(item.variant as any).product.images[0].url}
+                          alt={(item.variant as any).product.name}
+                          fill
+                          className="object-cover"
+                        />
+                      ) : (item.variant as any)?.image ? (
+                        <Image
+                          src={(item.variant as any).image}
+                          alt={(item.variant as any).name ?? 'Product'}
                           fill
                           className="object-cover"
                         />
@@ -352,10 +397,11 @@ export default function CheckoutPage() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-sm line-clamp-1">
-                        {item.variant?.product?.name}
+                        {(item.variant as any)?.product?.name ?? (item.variant as any)?.name ?? 'Product'}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        {item.variant?.color} / Size {item.variant?.size}
+                        {(item.variant as any)?.color && `${(item.variant as any).color} / `}
+                        {(item.variant as any)?.size ? `Size ${(item.variant as any).size}` : (item.variant as any)?.sizeUK ? `Size ${(item.variant as any).sizeUK}` : ''}
                       </p>
                     </div>
                     <p className="font-medium text-sm">{formatPrice(item.totalPrice)}</p>
@@ -373,7 +419,7 @@ export default function CheckoutPage() {
                 </div>
                 {cart.discountAmount > 0 && (
                   <div className="flex justify-between text-green-600">
-                    <span>Discount ({cart.couponCode})</span>
+                    <span>Discount {cart.couponCode && `(${cart.couponCode})`}</span>
                     <span>-{formatPrice(cart.discountAmount)}</span>
                   </div>
                 )}
@@ -408,10 +454,14 @@ export default function CheckoutPage() {
                   type="submit"
                   size="lg"
                   className="w-full text-base"
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || createOrder.isPending}
                   onClick={handleSubmit}
                 >
-                  {isSubmitting ? 'Processing...' : 'Place Order'}
+                  {(isSubmitting || createOrder.isPending) ? (
+                    <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Processing…</>
+                  ) : (
+                    'Place Order'
+                  )}
                 </Button>
                 <p className="text-xs text-center text-muted-foreground mt-3 flex items-center justify-center gap-1">
                   <Lock className="h-3 w-3" />

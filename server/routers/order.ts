@@ -34,13 +34,18 @@ export const orderRouter = createTRPCRouter({
         include: { product: true, inventory: { where: { branchId: input.branchId } } },
       });
 
-      // 2. Check inventory availability
+      // 2. Check inventory availability (only block if inventory record exists with 0 stock)
       for (const item of input.items) {
         const variant = variants.find((v) => v.id === item.variantId);
         if (!variant) throw new Error(`Variant ${item.variantId} not found`);
         const inv = variant.inventory[0];
-        const available = (inv?.quantity ?? 0) - (inv?.reserved ?? 0);
-        if (available < item.quantity) throw new Error(`Insufficient stock for ${variant.sku}`);
+        if (inv) {
+          const available = inv.quantity - inv.reserved;
+          if (available < item.quantity) {
+            throw new Error(`Insufficient stock for ${variant.sku}. Available: ${available}`);
+          }
+        }
+        // If no inventory record exists for this branch, allow the order — admin can track it manually
       }
 
       // 3. Calculate totals
@@ -78,16 +83,22 @@ export const orderRouter = createTRPCRouter({
 
       // 6. Decrement inventory (reserve for COD, hard deduct for digital)
       for (const item of input.items) {
-        if (input.paymentMethod === "COD") {
-          await tx.inventory.update({
-            where: { branchId_variantId: { branchId: input.branchId, variantId: item.variantId } },
-            data: { reserved: { increment: item.quantity } },
-          });
-        } else {
-          await tx.inventory.update({
-            where: { branchId_variantId: { branchId: input.branchId, variantId: item.variantId } },
-            data: { quantity: { decrement: item.quantity } },
-          });
+        // Only update inventory if a record exists for this branch+variant
+        const invRecord = await tx.inventory.findUnique({
+          where: { branchId_variantId: { branchId: input.branchId, variantId: item.variantId } },
+        });
+        if (invRecord) {
+          if (input.paymentMethod === "COD") {
+            await tx.inventory.update({
+              where: { branchId_variantId: { branchId: input.branchId, variantId: item.variantId } },
+              data: { reserved: { increment: item.quantity } },
+            });
+          } else {
+            await tx.inventory.update({
+              where: { branchId_variantId: { branchId: input.branchId, variantId: item.variantId } },
+              data: { quantity: { decrement: item.quantity } },
+            });
+          }
         }
         await tx.inventoryTransaction.create({
           data: {

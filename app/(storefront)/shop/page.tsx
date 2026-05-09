@@ -12,7 +12,7 @@ import { Slider } from '@/components/ui/slider';
 import { Badge } from '@/components/ui/badge';
 import { ProductCard } from '@/components/product-card';
 import { api } from '@/lib/trpc';
-import { formatPrice, styleCategories, genderCategories } from '@/lib/utils/catalog';
+import { formatPrice, styleCategories, genderCategories, knownBrands } from '@/lib/utils/catalog';
 
 const allSizes = ['3', '4', '5', '6', '7', '8', '9', '10', '11'];
 const allColors = [
@@ -30,7 +30,8 @@ const sortOptions = [
 ] as const;
 
 interface ShopFilters {
-  style?: string; category?: string; sizes?: string[]; colors?: string[];
+  style?: string; category?: string; brand?: string;
+  sizes?: string[]; colors?: string[];
   priceMin?: number; priceMax?: number; onSale?: boolean; featured?: boolean;
   sortBy?: string; search?: string;
 }
@@ -58,6 +59,7 @@ function ShopContent() {
   const { data, isLoading, isFetching } = api.product.getAll.useQuery({
     style: filters.style as never,
     category: filters.category as never,
+    brand: filters.brand,
     onSale: filters.onSale,
     featured: filters.featured,
     sizes: filters.sizes,
@@ -70,10 +72,14 @@ function ShopContent() {
     pageSize: 12,
   });
 
+  // Fetch live brands from DB (augmented by knownBrands fallback)
+  const { data: liveBrands } = api.product.getBrands.useQuery();
+
   const activeFilterCount = useMemo(() => {
     let n = 0;
     if (filters.style) n++;
     if (filters.category) n++;
+    if (filters.brand) n++;
     if (filters.sizes?.length) n++;
     if (filters.colors?.length) n++;
     if (filters.onSale) n++;
@@ -87,14 +93,38 @@ function ShopContent() {
     setPage(1);
   };
 
+  // Merge live DB brands with known fallback list
+  const displayBrands = useMemo(() => {
+    if (liveBrands && liveBrands.length > 0) return liveBrands;
+    return [...knownBrands];
+  }, [liveBrands]);
+
   const pageTitle = filters.onSale ? 'Sale'
     : filters.featured ? 'Featured Collection'
-    : filters.style ? styleCategories.find((s) => s.id === filters.style)?.label ?? 'Products'
-    : filters.category ? genderCategories.find((g) => g.id === filters.category)?.label ?? 'Products'
-    : 'All Products';
+      : filters.style ? styleCategories.find((s) => s.id === filters.style)?.label ?? 'Products'
+        : filters.category ? genderCategories.find((g) => g.id === filters.category)?.label ?? 'Products'
+          : 'All Products';
 
   const FilterContent = () => (
     <div className="space-y-6 sm:space-y-8">
+      {/* Brand */}
+      <div>
+        <h4 className="font-semibold text-xs sm:text-sm mb-2.5 sm:mb-3 uppercase tracking-wider text-muted-foreground">Brand</h4>
+        <div className="flex flex-wrap gap-1.5">
+          {displayBrands.map((brand) => (
+            <button
+              key={brand}
+              onClick={() => { setFilters((f) => ({ ...f, brand: f.brand === brand ? undefined : brand })); setPage(1); }}
+              className={`h-7 px-2.5 rounded-md border text-xs font-medium transition-colors ${filters.brand === brand
+                ? 'border-amber-500 bg-amber-500 text-white'
+                : 'border-border hover:border-amber-400 text-muted-foreground'
+                }`}
+            >
+              {brand}
+            </button>
+          ))}
+        </div>
+      </div>
       <div>
         <h4 className="font-semibold text-xs sm:text-sm mb-2.5 sm:mb-3 uppercase tracking-wider text-muted-foreground">Style</h4>
         <div className="space-y-2">
@@ -136,7 +166,7 @@ function ShopContent() {
         <h4 className="font-semibold text-xs sm:text-sm mb-2.5 sm:mb-3 uppercase tracking-wider text-muted-foreground">Color</h4>
         <div className="flex flex-wrap gap-2 sm:gap-2.5">
           {allColors.map((color) => (
-            <button key={color.name} onClick={() => {
+            <Button key={color.name} onClick={() => {
               setFilters((f) => ({ ...f, colors: f.colors?.includes(color.name) ? f.colors.filter((c) => c !== color.name) : [...(f.colors ?? []), color.name] }));
               setPage(1);
             }} className={`h-8 w-8 sm:h-9 sm:w-9 rounded-full border-2 transition-all flex-shrink-0 ${filters.colors?.includes(color.name) ? 'border-amber-500 ring-2 ring-amber-500 ring-offset-2' : 'border-border hover:scale-110'}`}
@@ -224,6 +254,10 @@ function ShopContent() {
                 {filters.category && <Badge variant="secondary" className="gap-1 text-xs">
                   {genderCategories.find((g) => g.id === filters.category)?.label}
                   <button onClick={() => setFilters((f) => ({ ...f, category: undefined }))} title="Clear"><X className="h-3 w-3" /></button>
+                </Badge>}
+                {filters.brand && <Badge variant="secondary" className="gap-1 text-xs">
+                  {filters.brand}
+                  <button onClick={() => setFilters((f) => ({ ...f, brand: undefined }))} title="Clear"><X className="h-3 w-3" /></button>
                 </Badge>}
                 {filters.sizes?.map((sz) => <Badge key={sz} variant="secondary" className="gap-1 text-xs">UK {sz}
                   <button onClick={() => setFilters((f) => ({ ...f, sizes: f.sizes?.filter((s) => s !== sz) }))} title="Clear"><X className="h-3 w-3" /></button>

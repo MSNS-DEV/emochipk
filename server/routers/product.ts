@@ -48,6 +48,7 @@ const GetAllInput = z.object({
   search: z.string().optional(),
   onSale: z.boolean().optional(),
   featured: z.boolean().optional(),
+  brand: z.string().optional(),
   sizes: z.array(z.string()).optional(),
   colors: z.array(z.string()).optional(),
   priceMin: z.number().optional(),
@@ -73,6 +74,9 @@ export const productRouter = createTRPCRouter({
       ...(input?.occasion && { occasion: { has: input.occasion } }),
       ...(input?.featured && { isFeatured: true }),
       ...(input?.onSale && { salePrice: { not: null } }),
+      ...(input?.brand && {
+        name: { startsWith: input.brand, mode: "insensitive" },
+      }),
       ...(input?.search && {
         OR: [
           { name: { contains: input.search, mode: "insensitive" } },
@@ -322,18 +326,26 @@ export const productRouter = createTRPCRouter({
       });
     }),
 
-  /** Get all unique brands (derived from product name prefix) for filter dropdown */
-  getBrands: adminProcedure.query(async ({ ctx }) => {
+  /** Get all unique brands (derived from product name prefix) for filter dropdown — public */
+  getBrands: publicProcedure.query(async ({ ctx }) => {
     const products = await ctx.db.product.findMany({
       select: { name: true },
-      distinct: ["name"],
+      where: { isActive: true },
     });
-    // Extract brand from name (first word before space)
+    // Extract brand from name (first word before space); handles multi-word brands via
+    // known prefix matching from the stocktaking catalogue.
+    const KNOWN_MULTI_WORD_BRANDS = [
+      'Hush Puppies', 'Urban Sole', 'Vince Born', 'X-Way',
+    ];
     const brandSet = new Set<string>();
     for (const p of products) {
-      const parts = p.name.split(" ");
-      if (parts.length > 0) {
-        brandSet.add(parts[0]);
+      const name = p.name.trim();
+      const multi = KNOWN_MULTI_WORD_BRANDS.find(b => name.toLowerCase().startsWith(b.toLowerCase()));
+      if (multi) {
+        brandSet.add(multi);
+      } else {
+        const first = name.split(' ')[0];
+        if (first) brandSet.add(first);
       }
     }
     return Array.from(brandSet).sort();

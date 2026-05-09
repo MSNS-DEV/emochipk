@@ -9,10 +9,10 @@ export function formatPrice(amount: number): string {
 }
 
 export const styleCategories = [
-  { id: 'PESHAWARI', label: 'Peshawari', emoji: '🥿' },
+  { id: 'PESHAWARI', label: 'Peshawari / Khussa', emoji: '🥿' },
   { id: 'OXFORD', label: 'Oxford / Formal', emoji: '👞' },
   { id: 'LOAFERS', label: 'Loafers', emoji: '🥾' },
-  { id: 'MOCCASINS', label: 'Moccasins / Khussa', emoji: '🪖' },
+  { id: 'MOCCASINS', label: 'Moccasins', emoji: '🪖' },
   { id: 'SANDALS', label: 'Sandals / Chappals', emoji: '🩴' },
   { id: 'SNEAKERS', label: 'Sneakers / Sports', emoji: '👟' },
 ] as const;
@@ -22,6 +22,27 @@ export const genderCategories = [
   { id: 'WOMEN', label: "Women's Collection", imageUrl: '/images/category-women.jpg' },
   { id: 'KIDS', label: "Kids' Collection", imageUrl: '/images/category-kids.jpg' },
 ] as const;
+
+/** All known brands from the stocktaking catalogue (April 2026) */
+export const knownBrands = [
+  'SIL',
+  'SSC',
+  'Bata',
+  'Xarasoft',
+  'Starlet',
+  'Borjan',
+  'X-Way',
+  'Vince Born',
+  'Delux',
+  'Hush Puppies',
+  'Urban Sole',
+  'WEJ',
+  'Imported',
+  'Others',
+  'Executive',
+] as const;
+
+export type KnownBrand = typeof knownBrands[number];
 
 export const pakistanProvinces = [
   'Punjab', 'Sindh', 'Khyber Pakhtunkhwa', 'Balochistan',
