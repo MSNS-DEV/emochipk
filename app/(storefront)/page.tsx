@@ -3,6 +3,7 @@ import Image from 'next/image';
 import { ArrowRight, Truck, RefreshCw, Shield, Award, MapPin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ProductCard } from '@/components/product-card';
+import { CategorySlideshow } from '@/components/category-slideshow';
 import { styleCategories, genderCategories, formatPrice } from '@/lib/data';
 import { createCallerFactory } from '@/server/trpc';
 import { appRouter } from '@/server/root';
@@ -10,10 +11,10 @@ import { db } from '@/server/db';
 import type { CatalogProduct } from '@/lib/data';
 
 const features = [
-  { icon: Truck,     title: 'Free Shipping',   description: 'On orders above PKR 5,000' },
-  { icon: RefreshCw, title: '7-Day Exchange',  description: 'Easy returns & exchanges' },
-  { icon: Shield,    title: 'Secure Payment',  description: 'COD · JazzCash · Raast' },
-  { icon: Award,     title: 'Handcrafted',     description: 'Pasrur & Daska artisans' },
+  { icon: Truck, title: 'Free Shipping', description: 'On orders above PKR 5,000' },
+  { icon: RefreshCw, title: '7-Day Exchange', description: 'Easy returns & exchanges' },
+  { icon: Shield, title: 'Secure Payment', description: 'COD · JazzCash · Raast' },
+  { icon: Award, title: 'Handcrafted', description: 'Pasrur & Daska artisans' },
 ];
 
 /** Fetch products via tRPC server caller — no HTTP round-trip */
@@ -22,20 +23,38 @@ async function getHomeProducts() {
   const caller = createCaller({ db, session: null });
 
   const [featuredRes, newRes, saleRes] = await Promise.allSettled([
-    caller.product.getAll({ featured: true, pageSize: 4 }),
+    caller.product.getAll({ featured: true, pageSize: 40 }),
     caller.product.getAll({ sortBy: 'newest', pageSize: 4 }),
     caller.product.getAll({ onSale: true, pageSize: 4 }),
   ]);
 
   return {
-    featured:    featuredRes.status === 'fulfilled' ? featuredRes.value.items : [],
-    newArrivals: newRes.status === 'fulfilled'      ? newRes.value.items      : [],
-    onSale:      saleRes.status === 'fulfilled'     ? saleRes.value.items     : [],
+    featured: featuredRes.status === 'fulfilled' ? featuredRes.value.items : [],
+    newArrivals: newRes.status === 'fulfilled' ? newRes.value.items : [],
+    onSale: saleRes.status === 'fulfilled' ? saleRes.value.items : [],
   };
 }
 
 export default async function HomePage() {
   const { featured, newArrivals, onSale } = await getHomeProducts();
+
+  const featuredGrid = featured.slice(0, 4);
+
+  const categoryImages: Record<string, string[]> = {
+    MEN: [],
+    WOMEN: [],
+    KIDS: [],
+  };
+
+  (featured as unknown as CatalogProduct[]).forEach((prod) => {
+    if (prod.category && categoryImages[prod.category] !== undefined) {
+      const primaryImage =
+        prod.images?.find((i) => i.isPrimary)?.url || prod.images?.[0]?.url;
+      if (primaryImage) {
+        categoryImages[prod.category].push(primaryImage);
+      }
+    }
+  });
 
   return (
     <>
@@ -118,13 +137,13 @@ export default async function HomePage() {
                 className="group relative aspect-[3/4] overflow-hidden rounded-2xl bg-stone-100 dark:bg-stone-900"
               >
                 <div className="absolute inset-0 bg-gradient-to-t from-stone-950/80 via-stone-950/20 to-transparent z-10" />
-                <Image
-                  src={cat.imageUrl}
-                  alt={cat.label}
-                  fill
-                  className="object-cover transition-transform duration-700 group-hover:scale-105"
-                  sizes="(min-width: 768px) 33vw, 50vw"
-                />
+                <div className="absolute inset-0 transition-transform duration-700 group-hover:scale-105">
+                  <CategorySlideshow
+                    images={categoryImages[cat.id] || []}
+                    fallbackUrl={cat.imageUrl}
+                    alt={cat.label}
+                  />
+                </div>
                 <div className="absolute bottom-0 left-0 right-0 p-5 z-20">
                   <h3 className="font-serif text-2xl font-bold text-white">{cat.label}</h3>
                   <span className="text-amber-400 text-sm flex items-center gap-1 mt-1 opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300">
@@ -176,7 +195,7 @@ export default async function HomePage() {
               </Button>
             </div>
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
-              {(featured as unknown as CatalogProduct[]).map((product) => (
+              {(featuredGrid as unknown as CatalogProduct[]).map((product) => (
                 <ProductCard key={product.id} product={product} />
               ))}
             </div>
@@ -193,7 +212,7 @@ export default async function HomePage() {
       <section className="relative py-24 lg:py-32 overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-amber-950 via-stone-900 to-stone-950" />
         <div className="absolute inset-0 opacity-10">
-          <div className="absolute inset-0" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, rgba(251,191,36,0.4) 1px, transparent 0)', backgroundSize: '40px 40px' }} />
+          <div className="absolute inset-0 bg-eid-pattern" />
         </div>
         <div className="container mx-auto px-4 relative z-10">
           <div className="max-w-2xl mx-auto text-center text-white">
@@ -286,8 +305,8 @@ export default async function HomePage() {
           </div>
           <div className="grid sm:grid-cols-2 gap-6 max-w-2xl mx-auto">
             {[
-              { city: 'Pasrur', address: 'Timber Market, Pasrur',       landmark: 'Near Service Super Shoes' },
-              { city: 'Daska',  address: 'Kachehri Road, Pasrur/Daska', landmark: 'Near Service Super Shoes' },
+              { city: 'Pasrur', address: 'Timber Market, Pasrur', landmark: 'Near Service Super Shoes' },
+              { city: 'Daska', address: 'Kachehri Road, Pasrur/Daska', landmark: 'Near Service Super Shoes' },
             ].map((store) => (
               <div key={store.city} className="bg-stone-900 border border-stone-800 rounded-2xl p-6">
                 <div className="flex items-start gap-3 mb-4">

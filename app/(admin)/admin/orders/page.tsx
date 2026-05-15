@@ -21,18 +21,18 @@ import { toast } from 'sonner';
 // ─── Status Config ─────────────────────────────────────────────────────────────
 
 const STATUS_CONFIG: Record<string, { color: string; label: string; icon: typeof Package }> = {
-  PENDING:                      { color: 'bg-yellow-500/15 text-yellow-400 border-yellow-500/20',  label: 'Pending',               icon: Clock },
-  PENDING_VERIFICATION:         { color: 'bg-orange-500/15 text-orange-400 border-orange-500/20',  label: 'Pending Verification',  icon: AlertTriangle },
-  VERIFIED:                     { color: 'bg-blue-500/15 text-blue-400 border-blue-500/20',         label: 'Verified',              icon: CheckCircle2 },
-  PROCESSING:                   { color: 'bg-indigo-500/15 text-indigo-400 border-indigo-500/20',   label: 'Processing',            icon: Package },
-  PACKED:                       { color: 'bg-cyan-500/15 text-cyan-400 border-cyan-500/20',         label: 'Packed',                icon: Package },
-  SHIPPED:                      { color: 'bg-purple-500/15 text-purple-400 border-purple-500/20',   label: 'Shipped',               icon: Truck },
-  OUT_FOR_DELIVERY:             { color: 'bg-amber-500/15 text-amber-400 border-amber-500/20',      label: 'Out for Delivery',      icon: Truck },
-  DELIVERED:                    { color: 'bg-green-500/15 text-green-400 border-green-500/20',      label: 'Delivered',             icon: CheckCircle2 },
-  CANCELLED:                    { color: 'bg-red-500/15 text-red-400 border-red-500/20',            label: 'Cancelled',             icon: XCircle },
-  CANCELLED_VERIFICATION_FAILED:{ color: 'bg-red-600/15 text-red-500 border-red-600/20',            label: 'Verification Failed',   icon: XCircle },
-  RTO:                          { color: 'bg-rose-500/15 text-rose-400 border-rose-500/20',         label: 'Return to Origin',      icon: RotateCcw },
-  RETURNED:                     { color: 'bg-zinc-500/15 text-zinc-400 border-zinc-500/20',         label: 'Returned',              icon: RotateCcw },
+  PENDING: { color: 'bg-yellow-500/15 text-yellow-400 border-yellow-500/20', label: 'Pending', icon: Clock },
+  PENDING_VERIFICATION: { color: 'bg-orange-500/15 text-orange-400 border-orange-500/20', label: 'Pending Verification', icon: AlertTriangle },
+  VERIFIED: { color: 'bg-blue-500/15 text-blue-400 border-blue-500/20', label: 'Verified', icon: CheckCircle2 },
+  PROCESSING: { color: 'bg-indigo-500/15 text-indigo-400 border-indigo-500/20', label: 'Processing', icon: Package },
+  PACKED: { color: 'bg-cyan-500/15 text-cyan-400 border-cyan-500/20', label: 'Packed', icon: Package },
+  SHIPPED: { color: 'bg-purple-500/15 text-purple-400 border-purple-500/20', label: 'Shipped', icon: Truck },
+  OUT_FOR_DELIVERY: { color: 'bg-amber-500/15 text-amber-400 border-amber-500/20', label: 'Out for Delivery', icon: Truck },
+  DELIVERED: { color: 'bg-green-500/15 text-green-400 border-green-500/20', label: 'Delivered', icon: CheckCircle2 },
+  CANCELLED: { color: 'bg-red-500/15 text-red-400 border-red-500/20', label: 'Cancelled', icon: XCircle },
+  CANCELLED_VERIFICATION_FAILED: { color: 'bg-red-600/15 text-red-500 border-red-600/20', label: 'Verification Failed', icon: XCircle },
+  RTO: { color: 'bg-rose-500/15 text-rose-400 border-rose-500/20', label: 'Return to Origin', icon: RotateCcw },
+  RETURNED: { color: 'bg-zinc-500/15 text-zinc-400 border-zinc-500/20', label: 'Returned', icon: RotateCcw },
 };
 
 const STATUSES = Object.keys(STATUS_CONFIG);

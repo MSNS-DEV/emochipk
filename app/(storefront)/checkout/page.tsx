@@ -89,7 +89,7 @@ export default function CheckoutPage() {
 
     // Validate required fields
     if (!formData.email || !formData.phone || !formData.firstName ||
-        !formData.address || !formData.city || !formData.province) {
+      !formData.address || !formData.city || !formData.province) {
       toast.error('Please fill in all required fields');
       setIsSubmitting(false);
       return;
@@ -305,11 +305,10 @@ export default function CheckoutPage() {
                   {paymentMethods.map((method) => (
                     <label
                       key={method.id}
-                      className={`flex items-start gap-4 p-4 rounded-lg border cursor-pointer transition-colors ${
-                        paymentMethod === method.id
+                      className={`flex items-start gap-4 p-4 rounded-lg border cursor-pointer transition-colors ${paymentMethod === method.id
                           ? 'border-primary bg-primary/5'
                           : 'border-border hover:border-primary/50'
-                      }`}
+                        }`}
                     >
                       <RadioGroupItem value={method.id} className="mt-1" />
                       <method.icon className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
