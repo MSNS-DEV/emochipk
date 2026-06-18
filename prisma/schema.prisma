@@ -428,6 +428,7 @@ model Order {
   shippingAddress ShippingAddress?
   returnRequests  ReturnRequest[]
   reviews         Review[]
+  trackingEvents  TrackingEvent[]
 
   @@map("orders")
 }
@@ -460,6 +461,23 @@ model ShippingAddress {
   order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
   @@map("shipping_addresses")
+}
+
+model TrackingEvent {
+  id             String         @id @default(cuid())
+  orderId        String
+  courierService CourierService
+  status         String         // Raw status from courier API (e.g., "Picked Up", "In Transit")
+  statusMessage  String?        // Human-readable description from courier
+  location       String?        // Location/city where the event occurred
+  timestamp      DateTime       // When the event happened (from courier)
+  rawPayload     Json?          // Store full courier response for debugging
+  createdAt      DateTime       @default(now())
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@map("tracking_events")
 }
 
 // ─────────────────────────────────────────────
