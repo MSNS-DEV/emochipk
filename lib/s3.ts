@@ -103,9 +103,21 @@ export const S3_BUCKET = process.env.S3_BUCKET_NAME ?? process.env.BUCKET ?? 'em
 
 /**
  * Build the public URL for an object stored in the bucket.
- * Routes through /api/images/ proxy which authenticates server-side.
+ * Prioritizes direct Cloudflare R2 delivery (NEXT_PUBLIC_IMAGE_URL / R2_PUBLIC_URL)
+ * to achieve 0 egress and 0 Vercel bandwidth usage.
+ * Falls back to /api/images/ proxy if no direct CDN domain is configured.
  */
 export function getPublicUrl(key: string): string {
+  const cleanKey = key.replace(/^\/+/, '');
+  const cdnUrl =
+    process.env.NEXT_PUBLIC_IMAGE_URL ||
+    process.env.NEXT_PUBLIC_CDN_URL ||
+    process.env.R2_PUBLIC_URL;
+
+  if (cdnUrl) {
+    return `${cdnUrl.replace(/\/$/, '')}/${cleanKey}`;
+  }
+
   const appUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://executivemochi.pk').replace(/\/$/, '');
-  return `${appUrl}/api/images/${key}`;
+  return `${appUrl}/api/images/${cleanKey}`;
 }

@@ -203,15 +203,15 @@ export function SiteFooter() {
       <div className="border-t border-sidebar-border">
         <div className="container mx-auto px-4 py-6">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-sidebar-foreground/60">
-            <p>&copy; {new Date().getFullYear()} Executive Mochi. All rights reserved.</p>
+            <p>&copy; {new Date().getFullYear()} MSNS-DEV®. All rights reserved.</p>
             <div className="flex items-center gap-6">
               <span className="flex items-center gap-2">
                 <Mail className="h-4 w-4" />
-                info@executivemochi.pk
+                info@msns.edu.pk
               </span>
               <span className="flex items-center gap-2">
                 <Phone className="h-4 w-4" />
-                +92 300 6314988
+                +92 301 6233609
               </span>
             </div>
           </div>

@@ -11,40 +11,52 @@ import { db } from '@/server/db';
  *
  * Safe to run multiple times (idempotent).
  */
-export async function POST(): Promise<NextResponse> {
-  const appUrl = (process.env.NEXT_PUBLIC_APP_URL ?? '').replace(/\/$/, '');
-  const bucket = process.env.S3_BUCKET_NAME ?? '';
-  const endpoint = (process.env.S3_ENDPOINT ?? '').replace(/\/$/, '');
+export async function POST(request: Request): Promise<NextResponse> {
+  const appUrl = (process.env.NEXT_PUBLIC_APP_URL ?? 'https://executivemochi.pk').replace(/\/$/, '');
+  const cdnUrl = (process.env.NEXT_PUBLIC_IMAGE_URL ?? process.env.R2_PUBLIC_URL ?? '').replace(/\/$/, '');
 
-  if (!appUrl || !bucket || !endpoint) {
-    return NextResponse.json({ error: 'Missing environment variables' }, { status: 500 });
-  }
+  let customTargetUrl = '';
+  try {
+    const body = await request.json().catch(() => ({}));
+    if (body && typeof body.targetUrl === 'string') {
+      customTargetUrl = body.targetUrl.replace(/\/$/, '');
+    }
+  } catch (_e) {}
 
-  // Old URL prefix (previous direct-S3 format, e.g. https://t3.storageapi.dev/<bucket>/<key>)
-  const oldPrefix = `${endpoint}/${bucket}/`;
-  const newPrefix = `${appUrl}/api/images/`;
+  const targetPrefix = customTargetUrl ? `${customTargetUrl}/` : (cdnUrl ? `${cdnUrl}/` : `${appUrl}/api/images/`);
 
   try {
-    // Find all images with old-style URLs
+    // Find all images whose URLs do not already match the target prefix
     const images = await db.productImage.findMany({
-      where: {
-        url: { startsWith: oldPrefix },
-      },
       select: { id: true, url: true },
     });
 
-    if (images.length === 0) {
+    const toMigrate = images.filter((img) => !img.url.startsWith(targetPrefix));
+
+    if (toMigrate.length === 0) {
       return NextResponse.json({
-        message: 'No images need migration — all URLs are already up to date.',
+        message: 'All image URLs are already aligned with target prefix.',
+        targetPrefix,
         migrated: 0,
       });
     }
 
-    // Update each image URL
     let migrated = 0;
-    for (const img of images) {
-      const key = img.url.replace(oldPrefix, '');
-      const newUrl = `${newPrefix}${key}`;
+    for (const img of toMigrate) {
+      // Extract key from either /api/images/<key>, old S3 URL, or direct path
+      let key = img.url;
+      if (img.url.includes('/api/images/')) {
+        key = img.url.substring(img.url.indexOf('/api/images/') + '/api/images/'.length);
+      } else {
+        const urlObj = new URL(img.url);
+        key = urlObj.pathname.replace(/^\/+/, '');
+        // If path begins with bucket name, strip it
+        if (process.env.S3_BUCKET_NAME && key.startsWith(`${process.env.S3_BUCKET_NAME}/`)) {
+          key = key.substring(process.env.S3_BUCKET_NAME.length + 1);
+        }
+      }
+
+      const newUrl = `${targetPrefix}${key.replace(/^\/+/, '')}`;
       await db.productImage.update({
         where: { id: img.id },
         data: { url: newUrl },
@@ -53,11 +65,12 @@ export async function POST(): Promise<NextResponse> {
     }
 
     return NextResponse.json({
-      message: `Successfully migrated ${migrated} image URL(s) from direct S3 to proxy format.`,
+      message: `Successfully migrated ${migrated} image URL(s) to Cloudflare target: ${targetPrefix}`,
+      targetPrefix,
       migrated,
-      sample: images.slice(0, 3).map((img) => ({
+      sample: toMigrate.slice(0, 3).map((img) => ({
+        id: img.id,
         old: img.url,
-        new: `${newPrefix}${img.url.replace(oldPrefix, '')}`,
       })),
     });
   } catch (error) {
