@@ -41,7 +41,10 @@ export async function GET(
       headers: {
         'Content-Type': response.ContentType ?? 'application/octet-stream',
         'Content-Length': response.ContentLength?.toString() ?? '',
-        'Cache-Control': 'public, max-age=31536000, immutable',
+        'Cache-Control': 'public, max-age=31536000, s-maxage=31536000, immutable',
+        'CDN-Cache-Control': 'public, max-age=31536000, immutable',
+        'Cloudflare-CDN-Cache-Control': 'public, max-age=31536000, immutable',
+        'Vercel-CDN-Cache-Control': 'public, max-age=31536000, immutable',
         'ETag': response.ETag ?? '',
       },
     });

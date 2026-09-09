@@ -35,6 +35,7 @@ Go to **Project → Settings → Environment Variables** and add these:
 | `NEXT_PUBLIC_BRAND_PHONE` | `+92-310-1601499` |
 
 ### 📦 Cloudflare R2 Image Storage
+Cloudflare R2 provides **0 egress fees** and unlimited free data transfer.
 
 | Variable | Value |
 |---|---|
@@ -43,6 +44,7 @@ Go to **Project → Settings → Environment Variables** and add these:
 | `S3_REGION` | `auto` |
 | `S3_ACCESS_KEY_ID` | `f3afb5cbae3f64a15d4030d65e741736` |
 | `S3_SECRET_ACCESS_KEY` | `3d90d3b9db6197138dd290f0122c1fe3198ddc7767e77a22d9a6115dd3db7f91` |
+| `NEXT_PUBLIC_IMAGE_URL` | *(Optional direct Cloudflare domain, e.g. `https://images.executivemochi.pk` or `https://pub-*.r2.dev`)* |
 
 ### 🚚 Courier & Payment APIs
 

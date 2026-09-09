@@ -1,19 +1,24 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   images: {
+    unoptimized: true,
     formats: ['image/avif', 'image/webp'],
     remotePatterns: [
       {
         protocol: 'https',
-        hostname: 'c678cf5c0fc5ef3806edacc18e6a762d.r2.cloudflarestorage.com',
+        hostname: '**.r2.cloudflarestorage.com',
       },
       {
         protocol: 'https',
-        hostname: 't3.storageapi.dev',
+        hostname: '**.r2.dev',
       },
       {
         protocol: 'https',
-        hostname: '4oeubkcl1phjjpbw.public.blob.vercel-storage.com',
+        hostname: 'images.executivemochi.pk',
+      },
+      {
+        protocol: 'https',
+        hostname: 'cdn.executivemochi.pk',
       },
       {
         protocol: 'https',

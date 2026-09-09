@@ -20,4 +20,5 @@ node_modules
 .DS_Store
 .vercel
 *.tsbuildinfo
-
+# Knowledge graph
+graphify-out/
