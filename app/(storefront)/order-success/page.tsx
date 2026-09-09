@@ -2,6 +2,8 @@ import Link from 'next/link';
 import { CheckCircle, Package, ArrowRight, Phone, Mail } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { OrderSuccessPixel } from './order-success-pixel';
+import { GoogleSurveyOptIn } from './google-survey-optin';
+import { db } from '@/server/db';
 
 interface OrderSuccessPageProps {
   searchParams: Promise<{ order?: string; oid?: string }>;
@@ -10,10 +12,55 @@ interface OrderSuccessPageProps {
 export default async function OrderSuccessPage({ searchParams }: OrderSuccessPageProps) {
   const { order: orderNumber, oid } = await searchParams;
 
+  let customerEmail: string | null = null;
+  let deliveryCountry = 'PK';
+  let estimatedDeliveryDate = '';
+
+  if (orderNumber) {
+    try {
+      const orderRecord = await db.order.findUnique({
+        where: { orderNumber },
+        include: {
+          user: { select: { email: true } },
+          shippingAddress: { select: { country: true } },
+        },
+      });
+
+      if (orderRecord) {
+        customerEmail = orderRecord.user?.email || null;
+        if (orderRecord.shippingAddress?.country) {
+          const c = orderRecord.shippingAddress.country.trim().toUpperCase();
+          deliveryCountry = c === 'PAKISTAN' ? 'PK' : c.length === 2 ? c : 'PK';
+        }
+        const createdDate = orderRecord.createdAt ? new Date(orderRecord.createdAt) : new Date();
+        const estDate = new Date(createdDate.getTime() + 6 * 24 * 60 * 60 * 1000);
+        estimatedDeliveryDate = estDate.toISOString().split('T')[0];
+      }
+    } catch (err) {
+      console.error('Failed to load order for Google Customer Reviews opt-in:', err);
+    }
+  }
+
+  if (!estimatedDeliveryDate) {
+    const d = new Date();
+    d.setDate(d.getDate() + 6);
+    estimatedDeliveryDate = d.toISOString().split('T')[0];
+  }
+
   return (
     <div className="min-h-[80vh] flex items-center justify-center py-16">
       {/* Fire browser-side Purchase event for Meta Pixel deduplication */}
       {orderNumber && <OrderSuccessPixel orderNumber={orderNumber} orderId={oid} />}
+
+      {/* Google Customer Reviews Survey Opt-in */}
+      {orderNumber && customerEmail && (
+        <GoogleSurveyOptIn
+          orderNumber={orderNumber}
+          email={customerEmail}
+          deliveryCountry={deliveryCountry}
+          estimatedDeliveryDate={estimatedDeliveryDate}
+        />
+      )}
       <div className="container mx-auto px-4">
         <div className="max-w-lg mx-auto text-center">
           {/* Success Icon */}

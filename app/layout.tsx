@@ -151,6 +151,35 @@ export default function RootLayout({
             alt=""
           />
         </noscript>
+        {/* Google Merchant Reviews Badge Widget */}
+        <Script
+          id="merchantWidgetScript"
+          src="https://www.gstatic.com/shopping/merchant/merchantwidget.js"
+          strategy="lazyOnload"
+        />
+        <Script id="merchant-widget-init" strategy="lazyOnload">
+          {`
+            (function() {
+              function startWidget() {
+                if (window.merchantwidget) {
+                  window.merchantwidget.start({
+                    merchant_id: 5778703057,
+                    position: "BOTTOM_LEFT",
+                    region: "PK"
+                  });
+                }
+              }
+
+              var script = document.getElementById('merchantWidgetScript');
+              if (script) {
+                script.addEventListener('load', startWidget);
+              }
+              if (window.merchantwidget) {
+                startWidget();
+              }
+            })();
+          `}
+        </Script>
       </head>
       <body className="font-sans antialiased min-h-screen">
         <Providers>
