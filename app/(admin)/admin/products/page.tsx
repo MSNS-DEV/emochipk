@@ -26,6 +26,13 @@ import {
 import { toast } from 'sonner';
 import { GMCSyncPanel } from '@/components/admin/gmc-sync-panel';
 import { stylesByCategory, getStylesForCategory, getStyleLabel, knownBrands } from '@/lib/data';
+import {
+  ColorOption,
+  DEFAULT_PRODUCT_COLORS,
+  loadStoredColors,
+  saveStoredColors,
+} from '@/lib/colors';
+import { ProductColorSelector } from '@/components/admin/product-color-selector';
 
 // ─── Validated Image (with loading / error / retry) ───────────────────────────
 
@@ -110,18 +117,7 @@ const SIZES_KIDS = Array.from(new Set([
   ...SIZES_KIDS_CHILDREN_UK, ...SIZES_KIDS_CHILDREN_EU,
 ]));
 
-const COLORS = [
-  { name: 'Black', hex: '#1a1a1a', bgClass: 'bg-[#1a1a1a]' },
-  { name: 'Brown', hex: '#8B4513', bgClass: 'bg-[#8B4513]' },
-  { name: 'Tan', hex: '#D2B48C', bgClass: 'bg-[#D2B48C]' },
-  { name: 'White', hex: '#FFFFFF', bgClass: 'bg-[#FFFFFF]' },
-  { name: 'Grey', hex: '#808080', bgClass: 'bg-[#808080]' },
-  { name: 'Navy', hex: '#1a1a3e', bgClass: 'bg-[#1a1a3e]' },
-  { name: 'Gold', hex: '#CFB53B', bgClass: 'bg-[#CFB53B]' },
-  { name: 'Beige', hex: '#F5F0E8', bgClass: 'bg-[#F5F0E8]' },
-  { name: 'Cognac', hex: '#9A463D', bgClass: 'bg-[#9A463D]' },
-  { name: 'Olive', hex: '#808000', bgClass: 'bg-[#808000]' },
-];
+const COLORS: ColorOption[] = DEFAULT_PRODUCT_COLORS;
 
 const sizeChart: Record<string, { us: string; eu: string; cm: string }> = {
   // Women UK sizes
@@ -305,7 +301,15 @@ function ImageManager({ productId, onAdded }: { productId: string; onAdded: () =
               <div className="flex items-center gap-2">
                 <span className="text-xs text-zinc-500">{colorLabel}</span>
                 {colorLabel !== 'General' && (
-                  <div className={`w-4 h-4 rounded-full border border-white/10 ${COLORS.find((c) => c.name === colorLabel)?.bgClass || 'bg-[#666]'}`} />
+                  <div
+                    className="w-4 h-4 rounded-full border border-white/10"
+                    style={{
+                      backgroundColor:
+                        product?.variants?.find((v) => v.color === colorLabel)?.colorHex ||
+                        loadStoredColors().find((c) => c.name.toLowerCase() === colorLabel.toLowerCase())?.hex ||
+                        '#666666',
+                    }}
+                  />
                 )}
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
@@ -392,12 +396,22 @@ function ImageManager({ productId, onAdded }: { productId: string; onAdded: () =
       <div className="space-y-2">
         <Label className="text-xs text-zinc-400">Assign to Color (Optional)</Label>
         <div className="flex flex-wrap gap-2">
-          {COLORS.filter((c) => product?.variants?.some((v) => v.color === c.name)).map((c) => (
-            <button key={c.name} type="button" title={c.name}
-              onClick={() => setSelectedColor(selectedColor === c.name ? '' : c.name)}
-              className={`w-8 h-8 sm:w-9 sm:h-9 rounded-full border-2 transition-all ${selectedColor === c.name ? 'border-amber-500 ring-2 ring-amber-500 ring-offset-1 ring-offset-zinc-950' : 'border-white/20 hover:scale-110'} ${c.bgClass}`}
-            />
-          ))}
+          {product?.variants
+            ? [...new Map(product.variants.filter((v) => v.color).map((v) => [v.color, v])).values()].map((v) => (
+                <button
+                  key={v.color}
+                  type="button"
+                  title={v.color}
+                  onClick={() => setSelectedColor(selectedColor === v.color ? '' : v.color)}
+                  style={{ backgroundColor: v.colorHex || '#666666' }}
+                  className={`w-8 h-8 sm:w-9 sm:h-9 rounded-full border-2 transition-all cursor-pointer ${
+                    selectedColor === v.color
+                      ? 'border-amber-500 ring-2 ring-amber-500 ring-offset-1 ring-offset-zinc-950 scale-105'
+                      : 'border-white/20 hover:scale-110'
+                  }`}
+                />
+              ))
+            : null}
         </div>
         {selectedColor && <p className="text-xs text-amber-400">Images will show when customers select {selectedColor}</p>}
       </div>
@@ -543,6 +557,18 @@ export default function AdminProductsPage() {
   const selectedOccasions = form.watch('occasion') ?? [];
   const category = form.watch('category');
 
+  // Dynamic colors list with localStorage persistence and DB merge
+  const [colorsList, setColorsList] = useState<ColorOption[]>(DEFAULT_PRODUCT_COLORS);
+
+  // Load saved colors on mount
+  useEffect(() => {
+    const saved = loadStoredColors();
+    if (saved && saved.length > 0) {
+      setColorsList(saved);
+    }
+  }, []);
+
+
 
   function toggleArr(arr: string[], val: string, set: (v: string[]) => void) {
     set(arr.includes(val) ? arr.filter((x) => x !== val) : [...arr, val]);
@@ -556,7 +582,7 @@ export default function AdminProductsPage() {
       const colorCode = color.substring(0, 3).toUpperCase();
       return selectedSizes.map((ukSize) => {
         const chart = sizeChart[ukSize] ?? { us: '', eu: '', cm: '' };
-        const colorHex = COLORS.find((c) => c.name === color)?.hex ?? '#000000';
+        const colorHex = colorsList.find((c) => c.name.toLowerCase() === color.trim().toLowerCase())?.hex ?? '#000000';
         
         let sizeCode = chart.eu || ukSize.replace(/[^a-zA-Z0-9]/g, '');
         let baseSku = `${article}-${colorCode}-${sizeCode}-STD`;
@@ -622,10 +648,34 @@ export default function AdminProductsPage() {
       // Collect unique sizes and colors from active variants
       const activeVars = product.variants.filter((v) => v.isActive);
       const sizes = [...new Set(activeVars.map((v) => v.sizeUK))];
+
+      // Ensure any variant colors from this product are present in colorsList
+      const newColorsToAdd: ColorOption[] = [];
+      for (const v of activeVars) {
+        if (!v.color) continue;
+        const trimmed = v.color.trim();
+        const exists = colorsList.some((c) => c.name.toLowerCase() === trimmed.toLowerCase());
+        const alreadyPending = newColorsToAdd.some((c) => c.name.toLowerCase() === trimmed.toLowerCase());
+        if (!exists && !alreadyPending) {
+          newColorsToAdd.push({
+            name: trimmed,
+            hex: v.colorHex || '#808080',
+            bgClass: `bg-[${v.colorHex || '#808080'}]`,
+            isCustom: true,
+          });
+        }
+      }
+
+      const activeColorsList = newColorsToAdd.length > 0 ? [...colorsList, ...newColorsToAdd] : colorsList;
+      if (newColorsToAdd.length > 0) {
+        setColorsList(activeColorsList);
+        saveStoredColors(activeColorsList);
+      }
+
       const colors = [
         ...new Set(
           activeVars.map((v) => {
-            const match = COLORS.find((c) => c.name.toLowerCase() === v.color.trim().toLowerCase());
+            const match = activeColorsList.find((c) => c.name.toLowerCase() === v.color.trim().toLowerCase());
             return match ? match.name : v.color.trim();
           })
         ),
@@ -780,7 +830,15 @@ export default function AdminProductsPage() {
                   {colors?.map((c) => (
                     <SelectItem key={c.color} value={c.color} className="text-white text-xs">
                       <span className="flex items-center gap-2">
-                        <span className={`w-3 h-3 rounded-full border border-white/20 flex-shrink-0 ${COLORS.find(col => col.name === c.color)?.bgClass || ''}`} />
+                        <span
+                          className="w-3 h-3 rounded-full border border-white/20 flex-shrink-0"
+                          style={{
+                            backgroundColor:
+                              c.colorHex ||
+                              colorsList.find((col) => col.name.toLowerCase() === c.color.toLowerCase())?.hex ||
+                              '#888888',
+                          }}
+                        />
                         {c.color}
                       </span>
                     </SelectItem>
@@ -1404,16 +1462,17 @@ export default function AdminProductsPage() {
             </div>
 
             {/* Colors */}
-            <div className="space-y-2.5">
-              <Label className="text-xs text-zinc-400">Colors to Generate *</Label>
-              <div className="flex flex-wrap gap-3">
-                {COLORS.map((c) => (
-                  <Button key={c.name} type="button" title={c.name}
-                    onClick={() => toggleArr(selectedColors, c.name, (v) => form.setValue('selectedColors', v))}
-                    className={`w-10 h-10 rounded-full border-2 transition-all flex-shrink-0 ${selectedColors.includes(c.name) ? 'border-amber-500 ring-2 ring-amber-500 ring-offset-1 ring-offset-zinc-950' : 'border-white/20 hover:scale-110'} ${c.bgClass}`} />
-                ))}
-              </div>
-            </div>
+            <ProductColorSelector
+              selectedColors={selectedColors}
+              onChange={(newColors) =>
+                form.setValue('selectedColors', newColors, { shouldValidate: true })
+              }
+              colorsList={colorsList}
+              onColorsListChange={(newList) => {
+                setColorsList(newList);
+                saveStoredColors(newList);
+              }}
+            />
 
             <div className="flex flex-col-reverse sm:flex-row gap-3 pt-4">
               <Button type="button" variant="outline" onClick={() => setShowForm(false)}
