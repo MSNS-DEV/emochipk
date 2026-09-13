@@ -43,6 +43,8 @@ Version 1.0 \| April 1, 2026 \| Status: Draft
   0.4           March 28, 2026   Product Team       Added Antigravity development framework requirements
 
   1.0           April 1, 2026    Product Team       Final version --- complete SRS with Prisma schema alignment
+
+  1.1           September 14, 2026 Engineering Team   Added Section 3.10 Scheduled Automation and Background Cron Jobs (Proposed)
   ------------- ---------------- ------------------ -------------------------------------------------------------------
 
   -----------------------------------------------------------------------
@@ -70,6 +72,8 @@ The following keyword conventions are used throughout this document to indicate 
   **MAY**          **Optional feature**                Inclusion is at the discretion of the development team based on time and budget.
 
   **FR-XXX-NN**    **Functional requirement ID**       Prefix indicates module (e.g., CAT = Catalog, INV = Inventory, ORD = Orders).
+
+  **FR-CRN-NN**    **Cron requirement ID**             Prefix indicates scheduled background automation module.
 
   **NFR-XXX-NN**   **Non-functional requirement ID**   Prefix indicates category (e.g., PERF = Performance, SEC = Security).
 
@@ -620,6 +624,72 @@ This module defines requirements specific to development within the Google Antig
 
 **FR-ANT-08:** The system **SHALL** maintain an Agent Log of all automated interventions --- including the trigger event, proposed fix, tests run, and outcome --- for audit, debugging, and continuous improvement purposes.
 
+**3.10 Scheduled Automation and Background Cron Jobs (Proposed)**
+
+This module specifies automated, scheduled background tasks (Cron jobs) executed via Vercel Cron or serverless task runners to ensure multi-branch inventory integrity, automated logistics reconciliation, real-time Google Merchant Center feed synchronization, customer retention, and security compliance without requiring manual administrative execution.
+
+**3.10.1 Automated Courier Tracking and COD Settlement Sync**
+
+**FR-CRN-01:** The system **SHALL** execute a recurring courier tracking synchronization job on a bi-hourly schedule (`0 */2 * * *`). The job SHALL:
+1. Query all database orders currently in `SHIPPED` or `OUT_FOR_DELIVERY` status across active logistics carriers (Leopards, PostEx, Trax, TCS).
+2. Query respective carrier REST APIs with stored Airway Bill (AWB) or tracking numbers.
+3. Automatically append newly detected events to the `TrackingEvent` table.
+4. Transition `Order.status` to `DELIVERED` immediately upon carrier confirmation of doorstep receipt.
+5. Update `paymentStatus` to `COD_PENDING_COLLECTION` for Cash on Delivery orders upon delivery confirmation.
+6. Flag delivery failures, customer contact issues, or Return-to-Origin (`RTO`) events in real time for administrative and customer support intervention.
+
+**3.10.2 Google Merchant Center (GMC) Product Feed Synchronization**
+
+**FR-CRN-02:** The system **SHALL** execute a catalog synchronization job daily at midnight UTC (`0 0 * * *`). The job SHALL:
+1. Fetch all active footwear models and variants from the PostgreSQL database.
+2. Verify pricing, active promotional discounts, and variant stock availability (`in_stock` vs `out_of_stock`).
+3. Push structured product updates directly to Google Merchant Center via the Content API or refresh the cached static XML feed at `/api/gmc/feed`.
+4. Log item validation warnings and disapproved attributes to prevent Google Shopping account suspension.
+
+**3.10.3 Inventory Hold Expiration and Abandoned Checkout Cleanup**
+
+**FR-CRN-03:** The system **SHALL** execute a stock reservation reclamation job every 30 minutes (`*/30 * * * *`). The job SHALL:
+1. Identify all temporary inventory holds in `Inventory.reserved` associated with pending digital card sessions or unverified COD checkouts older than 30 minutes (configurable via `INVENTORY_HOLD_TTL_MINUTES`).
+2. Release reserved variant quantities back to available inventory by atomically decrementing `Inventory.reserved` and restoring `Inventory.quantity`.
+3. Mark abandoned checkout orders as `CANCELLED` with reason code `ABANDONED_CHECKOUT_TIMEOUT`.
+4. Prevent physical inventory at Pasrur and Daska branches from being indefinitely locked by abandoned browser sessions.
+
+**3.10.4 Store Credit Voucher Expiry Processing**
+
+**FR-CRN-04:** The system **SHALL** execute a store credit audit job daily at 01:00 AM UTC (`0 1 * * *`). The job SHALL:
+1. Scan all `StoreCredit` vouchers where `status = ACTIVE` and `expiresAt < CURRENT_TIMESTAMP`.
+2. Transition voucher status to `EXPIRED` within an atomic database transaction.
+3. Generate an audit log record documenting credit expiration to prevent post-expiry redemption at online checkout or in-store POS.
+
+**3.10.5 Multi-Branch Low-Stock and Reorder Digest**
+
+**FR-CRN-05:** The system **SHALL** execute a stock replenishment digest job daily at 09:00 AM PKT (`0 4 * * *` UTC). The job SHALL:
+1. Scan all active inventory items where `Inventory.quantity <= Inventory.lowStockThreshold`.
+2. Aggregate low-stock SKUs grouped by physical branch (Pasrur workshop, Ghakhar retail, Daska distribution).
+3. Generate and dispatch a consolidated low-stock summary via email/WhatsApp to workshop master craftsmen and administrators to trigger batch production.
+
+**3.10.6 Post-Delivery Customer Review Reminders and Loyalty Tier Elevation**
+
+**FR-CRN-06:** The system **SHALL** execute a customer feedback and loyalty update job daily at 02:00 PM PKT (`0 9 * * *` UTC). The job SHALL:
+1. Query orders with `status = DELIVERED` where delivery occurred between 5 and 7 days prior.
+2. Filter for customers who have not yet submitted a verified product review for that order.
+3. Dispatch automated review invitation notifications (WhatsApp/Email) with direct deep-links to the product review form.
+4. Recalculate customer `loyaltyPoints` based on successful deliveries and automatically elevate qualifying customers across membership tiers (`BRONZE` -> `SILVER` -> `GOLD`).
+
+**3.10.7 Dynamic Search Engine Sitemap Freshness and Indexation Ping**
+
+**FR-CRN-07:** The system **SHALL** execute a search engine indexing freshness job weekly on Sunday at 03:00 AM UTC (`0 3 * * 0`). The job SHALL:
+1. Verify generation and validity of the dynamic XML sitemap (`/sitemap.xml`) encompassing all 1,269+ active catalog items.
+2. Dispatch HTTP pings to Google Search Central and Bing Webmaster endpoints with the updated sitemap URL.
+3. Validate accessibility of `/llms.txt` and `/llms-full.txt` for Generative AI crawlers.
+
+**3.10.8 Background Automation Security and Execution Standards**
+
+**FR-CRN-08:** The system **SHALL** protect all cron route endpoints (`/api/cron/*`) using bearer token authorization:
+1. Verify that the incoming request header contains `Authorization: Bearer ${CRON_SECRET}` matching the server-side environment secret.
+2. Reject unauthenticated requests with HTTP 401 Unauthorized to prevent denial-of-service or unauthorized database execution.
+3. Enforce maximum execution timeout limits compliant with serverless compute configurations (e.g. Vercel maxDuration 60s).
+
   -----------------------------------------------------------------------
   **4. EXTERNAL INTERFACE REQUIREMENTS**
 
@@ -677,6 +747,8 @@ This module defines requirements specific to development within the Google Antig
   **IF-SW-11**   **pdf-lib**                   Server-side PDF generation for shipping labels, packing slips, invoices, and credit vouchers.
 
   **IF-SW-12**   **NextAuth.js**               JWT session management; Credentials Provider; role-based session claims.
+
+  **IF-SW-13**   **Vercel Cron**               Scheduled serverless trigger runner; Authorization Bearer CRON_SECRET token verification; UTC schedules.
   -------------- ----------------------------- ---------------------------------------------------------------------------------------------------
 
 **4.4 Communications Interfaces**
