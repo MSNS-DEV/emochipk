@@ -1,5 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  trailingSlash: false,
   images: {
     unoptimized: true,
     formats: ['image/avif', 'image/webp'],
@@ -26,8 +27,80 @@ const nextConfig = {
       },
     ],
   },
+  async redirects() {
+    return [
+      // 1. Catalog roots
+      {
+        source: '/products',
+        destination: '/shop',
+        permanent: true,
+      },
+      {
+        source: '/items',
+        destination: '/shop',
+        permanent: true,
+      },
+      {
+        source: '/item',
+        destination: '/shop',
+        permanent: true,
+      },
+      {
+        source: '/collections',
+        destination: '/shop',
+        permanent: true,
+      },
+      {
+        source: '/collection',
+        destination: '/shop',
+        permanent: true,
+      },
+      {
+        source: '/product',
+        destination: '/shop',
+        permanent: true,
+      },
+      // 2. Dynamic single product redirects (use :slug+ to ensure at least 1 segment matches)
+      {
+        source: '/products/:slug+',
+        destination: '/product/:slug+',
+        permanent: true,
+      },
+      {
+        source: '/items/:slug+',
+        destination: '/product/:slug+',
+        permanent: true,
+      },
+      {
+        source: '/item/:slug+',
+        destination: '/product/:slug+',
+        permanent: true,
+      },
+      // 3. Category & collection paths
+      {
+        source: '/collections/:path+',
+        destination: '/shop',
+        permanent: true,
+      },
+      {
+        source: '/collection/:path+',
+        destination: '/shop',
+        permanent: true,
+      },
+    ];
+  },
+  async headers() {
+    return [
+      {
+        source: '/:path*',
+        headers: [
+          { key: 'X-Content-Type-Options', value: 'nosniff' },
+          { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
+          { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+        ],
+      },
+    ];
+  },
+};
 
-}
-
-
-export default nextConfig
+export default nextConfig;

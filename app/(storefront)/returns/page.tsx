@@ -1,7 +1,22 @@
+import type { Metadata } from 'next';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { RefreshCw, CheckCircle, XCircle, ArrowRight, PhoneCall } from "lucide-react"
 import Link from "next/link"
+
+export const metadata: Metadata = {
+  title: 'Returns & 7-Day Doorstep Exchanges',
+  description:
+    'Hassle-free 7-day size exchange and returns policy across Pakistan. If your handcrafted leather shoes do not fit perfectly, contact our WhatsApp support for swift doorstep replacement.',
+  alternates: {
+    canonical: 'https://executivemochi.pk/returns',
+  },
+  openGraph: {
+    title: 'Returns & 7-Day Doorstep Exchanges | Executive Mochi Pakistan',
+    description: 'Easy 7-day doorstep size exchanges and returns for all handcrafted leather footwear.',
+    url: 'https://executivemochi.pk/returns',
+  },
+};
 
 const eligible = [
   "Unworn shoes in original condition with all tags attached",

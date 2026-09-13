@@ -11,6 +11,25 @@ import { createCallerFactory } from '@/server/trpc';
 import { appRouter } from '@/server/root';
 import { db } from '@/server/db';
 import type { CatalogProduct } from '@/lib/data';
+import type { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  title: {
+    absolute: 'Executive Mochi | Luxury Handcrafted Footwear Pakistan',
+  },
+  description:
+    'Discover 100% genuine handcrafted leather shoes from Pakistan. Master-crafted formal Oxfords, casual Loafers, Moccasins, and traditional Peshawari Chappals with nationwide Cash on Delivery.',
+  alternates: {
+    canonical: 'https://executivemochi.pk',
+  },
+  openGraph: {
+    title: 'Executive Mochi | Luxury Handcrafted Footwear Pakistan',
+    description:
+      'Shop master-crafted genuine leather shoes, loafers, and Peshawari chappals. Free shipping over PKR 5,000 & 7-day doorstep exchange.',
+    url: 'https://executivemochi.pk',
+    type: 'website',
+  },
+};
 
 export const revalidate = 60; // Revalidate home page every 60s to pick up newly uploaded product images
 

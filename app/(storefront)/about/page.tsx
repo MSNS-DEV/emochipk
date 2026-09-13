@@ -2,6 +2,21 @@ import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
 import { MapPin, Phone, Clock, Award, Users, Leaf } from "lucide-react"
+import type { Metadata } from 'next'
+
+export const metadata: Metadata = {
+  title: 'Our Heritage & Story | Handcrafted Since 1985',
+  description:
+    'Discover the story of Executive Mochi. Heritage shoe craftsmanship born in Pasrur & Ghakhar, dedicated to master-crafted pure leather footwear for discerning gentlemen.',
+  alternates: {
+    canonical: 'https://executivemochi.pk/about',
+  },
+  openGraph: {
+    title: 'Our Story & Craftsmanship Heritage | Executive Mochi',
+    description: 'Heritage shoemaking rooted in Punjab since 1985. 100% genuine full-grain leather footwear.',
+    url: 'https://executivemochi.pk/about',
+  },
+};
 
 export default function AboutPage() {
   return (

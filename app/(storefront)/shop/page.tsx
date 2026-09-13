@@ -181,7 +181,7 @@ function parseFiltersFromParams(searchParams: URLSearchParams): {
       colors: colorsParam ? colorsParam.split(',').filter(Boolean) : undefined,
       onSale: filterParam === 'sale' || searchParams.get('onSale') === 'true' ? true : undefined,
       featured: filterParam === 'featured' || searchParams.get('featured') === 'true' ? true : undefined,
-      search: searchParams.get('search') ?? undefined,
+      search: searchParams.get('search') ?? searchParams.get('q') ?? undefined,
     },
     priceRange: [priceMin, priceMax],
     page: pageParam ? Number(pageParam) : 1,

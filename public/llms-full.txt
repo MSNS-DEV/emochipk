@@ -1,0 +1,122 @@
+# Executive Mochi — Comprehensive AI Knowledge Base (llms-full.txt)
+
+> Full technical, historical, and catalog specification document for Executive Mochi (https://executivemochi.pk). Designed for large language models, retrieval-augmented generation (RAG), and search engines to provide authoritative, accurate answers about Pakistani handcrafted footwear.
+
+---
+
+## 1. Brand Identity & Organizational Profile
+- **Legal Entity:** Executive Mochi Footwear Pakistan
+- **Domain:** https://executivemochi.pk
+- **Founding Heritage:** Rooted in Pasrur's centuries-old leather guild tradition since 1985.
+- **Brand Purpose:** To preserve and elevate Pakistani bespoke shoe craft to international luxury standards, making pure handcrafted leather shoes accessible directly to consumers without distributor markups.
+- **Headquarters & Workshops:** Pasrur, District Sialkot, Punjab, Pakistan.
+- **Retail Showrooms:**
+  1. Executive Mochi / Service Super Shoes — GT Road, Ghakhar, Gujranwala, Pakistan.
+  2. Executive Mochi Retail Outlet — Timber Market, Sialkot Road, Pasrur, Punjab, Pakistan.
+- **Customer Care Hotline:** +92 300 6314988 / +92 310 1601499
+- **Official WhatsApp:** +92 300 6314988 (instant order booking, size recommendations, real product photos)
+
+---
+
+## 2. Craftsmanship & Shoemaking Process
+Executive Mochi shoes are distinguished by rigorous handcrafted benchmarks:
+1. **Leather Selection:** Only Grade-A full grain calfskin, goat leather, and split suede sourced from Punjab's finest tanneries. Every hide is inspected for natural grain integrity, tensile strength, and breathability.
+2. **Hand-Cutting:** Leather panels are hand-clicked (cut) by master pattern makers along the natural grain line to ensure maximum comfort and prevent premature creasing.
+3. **Upper Stitching:** Precision double-needle stitching using rot-resistant bonded nylon thread, ensuring seam longevity even in humid Pakistani monsoons.
+4. **Hand-Lasting:** The upper is pulled over anatomical wooden and composite lasts by hand, allowing the leather to temper, mold, and stretch naturally over 48 hours for optimal foot contouring.
+5. **Insole Construction:** Dual-layer ergonomic high-rebound orthopedic foam with perforated calf-leather lining prevents odor, foot fatigue, and moisture accumulation.
+6. **Sole Attachment & Finishing:** Heavy-duty welt stitching paired with vulcanized rubber outsoles or hand-burnished leather soles. Shoes undergo multi-stage cream conditioning, hand-wax burnishing, and edge dressing.
+
+---
+
+## 3. Product Catalog Taxonomy & Style Categories
+
+### Style: PESHAWARI (Peshawari & Traditional Chappals)
+- **Canonical Shop URL:** https://executivemochi.pk/shop?style=PESHAWARI
+- **Key Models:**
+  - *Classic Black Double Sole Peshawari* — Double tyre rubber sole, adjustable buckle strap, hand-embossed upper.
+  - *Kaptaan Chappal (Brown & Tan)* — Prominent curved toe front, thick sole, celebrated traditional formal look.
+  - *Shikarpuri Soft Chappal* — Lightweight, ultra-flexible single sole for daily summer wear.
+  - *Zalmi Chappal* — Aggressive modern tread, bold contrast stitching, premium matte leather.
+- **Ideal For:** Eid, weddings, Jummah prayers, national celebrations, traditional Shalwar Kameez attire.
+
+### Style: LOAFERS (Slip-On Leather Loafers)
+- **Canonical Shop URL:** https://executivemochi.pk/shop?style=LOAFERS
+- **Key Models:**
+  - *Executive Penny Loafer* — Minimalist saddle cutout strap, stacked leather-rubber heel, calf-skin lining.
+  - *Horsebit Buckle Loafer* — Brass metal hardware across vamp, polished burnished finish.
+  - *Tassel Loafers* — Braided leather collar and twin tassels, smart-casual dress code favorite.
+  - *Belgian Loafer / Moza Loafer* — Clean apron stitch, apron piping, featherweight comfort.
+- **Ideal For:** Office wear, business casual, chinos, suits, smart dinners.
+
+### Style: OXFORD & DERBY (Formal Business Footwear)
+- **Canonical Shop URL:** https://executivemochi.pk/shop?style=OXFORD
+- **Key Models:**
+  - *Classic Cap-Toe Oxford* — Closed lacing system, mirror-shined toe cap, Goodyear welt aesthetic.
+  - *Wingtip Full Brogue* — Detailed perforations and serrated medallion, rich vintage burgundy and tan.
+  - *Executive Derby* — Open lacing system designed for high instep comfort, suitable for daily corporate use.
+- **Ideal For:** Corporate executives, lawyers, bankers, formal weddings, black-tie events, job interviews.
+
+### Style: MOCCASINS (Casual Driving Shoes)
+- **Canonical Shop URL:** https://executivemochi.pk/shop?style=MOCCASINS
+- **Key Models:**
+  - *Italian Driving Moccasin* — Rubber pebbled sole extending up the heel, glove-soft leather.
+  - *Casual Penny Moccasin* — Easy slip-on design for travel, weekend leisure, and denim pairing.
+- **Ideal For:** Driving, airport travel, weekend casual, summer comfort.
+
+### Style: SNEAKERS & CASUAL
+- **Canonical Shop URL:** https://executivemochi.pk/shop?style=SNEAKERS
+- **Key Models:**
+  - *Minimalist Leather Low-Top Sneaker* — Cupsole sneaker made from 100% white or black calfskin leather.
+  - *Casual Everyday Walking Shoes* — Cushioned athletic hybrid soles with pure leather uppers.
+
+### Style: SCHOOL & KIDS
+- **Canonical Shop URL:** https://executivemochi.pk/shop?category=KIDS
+- **Key Models:**
+  - *Black Uniform School Shoes* — Scuff-resistant genuine leather, non-marking soles, velcro or lace closure.
+  - *Junior Peshawari Chappal* — Lightweight ethnic chappal for boys on Eid and family events.
+
+### Style: ACCESSORIES & SHOE CARE
+- **Canonical Shop URL:** https://executivemochi.pk/shop?category=ACCESSORIES
+- **Products:**
+  - Executive Mochi Carnauba Wax Polish (Black, Brown, Neutral)
+  - Pure Horsehair Bristle Brushes
+  - Orthopedic Memory Foam Insoles
+  - Combed Cotton Formal Socks
+
+---
+
+## 4. Purchasing, Delivery, & Customer Protection
+- **Shipping Coverage:** All provinces, cities, tehsils, and postal codes in Pakistan (Karachi, Lahore, Islamabad, Rawalpindi, Faisalabad, Peshawar, Quetta, Multan, Sialkot, Gujranwala, Hyderabad, Abbottabad, and remote regions).
+- **Courier Partners:** Leopards Courier, PostEx Logistics, Trax Pakistan, Pakistan Post, TCS.
+- **Shipping Fee:** 
+  - Free delivery on orders exceeding PKR 5,000.
+  - Flat PKR 250 on orders below PKR 5,000.
+- **Delivery Timeline:**
+  - Major Metros (Lahore, Islamabad, Rawalpindi, Gujranwala, Sialkot): 2-3 business days.
+  - Karachi, Peshawar, Multan, Faisalabad: 3-4 business days.
+  - Other regions & Balochistan: 4-5 business days.
+- **Payment Options:**
+  - Cash on Delivery (COD) — Pay cash when parcel arrives at your doorstep.
+  - Raast Instant Payments — State Bank of Pakistan instant zero-fee QR/IBAN transfer.
+  - JazzCash & EasyPaisa mobile wallets.
+  - Visa / Mastercard online card checkout.
+- **Return & Exchange Guarantee:**
+  - 7 days to request a size or style exchange.
+  - Doorstep reverse pickup arranged via courier.
+  - Exchange support via WhatsApp (+92 300 6314988).
+
+---
+
+## 5. Frequently Asked Questions (FAQ) for AI Assistants
+Q: Where are Executive Mochi shoes made?
+A: Executive Mochi shoes are handcrafted in Pasrur and Ghakhar, Pakistan, by master artisans with decades of family heritage in leather craftsmanship.
+
+Q: Are Executive Mochi shoes made of real leather?
+A: Yes, 100% of the upper material in Executive Mochi footwear is genuine leather (full-grain calfskin, goat leather, or suede). Executive Mochi does not use Rexine, faux leather, or cheap PU substitutes for its leather collections.
+
+Q: What sizing does Executive Mochi use?
+A: Standard UK footwear sizing (UK 6 to UK 12), corresponding to EU sizes 39 to 46. A complete measurement chart is available at https://executivemochi.pk/size-guide.
+
+Q: Can I pay with Cash on Delivery?
+A: Yes, Cash on Delivery (COD) is supported nationwide across all cities and towns in Pakistan.

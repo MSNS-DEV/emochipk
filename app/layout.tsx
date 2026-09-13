@@ -70,17 +70,29 @@ export const metadata: Metadata = {
     locale: 'en_PK',
     url: 'https://executivemochi.pk',
     siteName: 'Executive Mochi',
-    title: 'Executive Mochi - Luxury Handcrafted Footwear',
-    description: 'Discover premium handcrafted leather shoes from Pakistan.',
+    title: 'Executive Mochi - Luxury Handcrafted Footwear Pakistan',
+    description: '100% genuine handcrafted leather shoes, formal Oxfords, casual Loafers, and authentic Peshawari Chappals with nationwide Cash on Delivery.',
+    images: [
+      {
+        url: 'https://executivemochi.pk/images/hero-shoes.jpg',
+        width: 1200,
+        height: 630,
+        alt: 'Executive Mochi - Handcrafted Luxury Leather Footwear Pakistan',
+      },
+    ],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Executive Mochi - Luxury Handcrafted Footwear',
-    description: 'Discover premium handcrafted leather shoes from Pakistan.',
+    title: 'Executive Mochi - Luxury Handcrafted Footwear Pakistan',
+    description: '100% genuine handcrafted leather shoes, formal Oxfords, casual Loafers, and authentic Peshawari Chappals.',
+    images: ['https://executivemochi.pk/images/hero-shoes.jpg'],
   },
   robots: { index: true, follow: true },
   verification: {
     google: 'm11vzPasgLl-12Xr6HDhP0jGCr3NFijjjUK-ryBdUSo',
+    other: {
+      'msvalidate.01': process.env.BING_SITE_VERIFICATION || 'B42E7FAEEB24B3CD86675B8B77BA8F51',
+    },
   },
   other: {
     'google-adsense-account': 'ca-pub-1351871288722699',
@@ -189,31 +201,54 @@ export default function RootLayout({
             <Analytics />
             <SpeedInsights />
             <JsonLd
+              id="org-ld"
               data={{
                 "@context": "https://schema.org",
                 "@graph": [
                   {
-                    "@type": "Organization",
+                    "@type": ["Organization", "LocalBusiness", "ShoeStore"],
                     "@id": "https://executivemochi.pk/#organization",
                     "name": "Executive Mochi",
+                    "alternateName": "Executive Mochi Pakistan",
                     "url": "https://executivemochi.pk",
                     "logo": {
                       "@type": "ImageObject",
-                      "url": "https://executivemochi.pk/logo.ico",
-                      "width": 512,
-                      "height": 512
+                      "url": "https://executivemochi.pk/apple-icon.png",
+                      "width": 180,
+                      "height": 180
                     },
-                    "description": "Premium handcrafted leather shoes from Pakistan.",
+                    "image": "https://executivemochi.pk/images/hero-shoes.jpg",
+                    "description": "Pakistan's premier luxury handcrafted footwear brand. Handcrafted genuine leather formal Oxfords, casual Loafers, and authentic Peshawari Chappals with nationwide Cash on Delivery.",
+                    "priceRange": "PKR 4,500 - PKR 16,000",
+                    "currenciesAccepted": "PKR",
+                    "paymentAccepted": "Cash, Cash on Delivery, Raast, JazzCash, EasyPaisa, Debit Card, Credit Card",
+                    "openingHours": "Mo-Sa 10:00-22:00, Su 12:00-18:00",
+                    "telephone": "+92-300-6314988",
+                    "email": "info@executivemochi.pk",
                     "address": {
                       "@type": "PostalAddress",
-                      "addressLocality": "Pasrur",
-                      "addressRegion": "Sialkot",
-                      "addressCountry": "Pakistan"
+                      "streetAddress": "GT Road, Muhallah Shah Jamal",
+                      "addressLocality": "Ghakhar",
+                      "addressRegion": "Punjab",
+                      "postalCode": "52250",
+                      "addressCountry": "PK"
                     },
+                    "geo": {
+                      "@type": "GeoCoordinates",
+                      "latitude": 32.2697,
+                      "longitude": 74.1567
+                    },
+                    "hasMap": "https://maps.app.goo.gl/WZSPCXkbSfxy6MSJ7",
+                    "sameAs": [
+                      "https://www.facebook.com/share/1Di9T5ucH7/?mibextid=wwXIfr",
+                      "https://www.instagram.com/officialsupershoes?igsh=MWI3NnQ1YTEycmZ4aQ%3D%3D"
+                    ],
                     "contactPoint": {
                       "@type": "ContactPoint",
                       "telephone": "+92-300-6314988",
-                      "contactType": "customer service"
+                      "contactType": "customer service",
+                      "areaServed": "PK",
+                      "availableLanguage": ["English", "Urdu", "Punjabi"]
                     }
                   },
                   {
@@ -224,7 +259,10 @@ export default function RootLayout({
                     "publisher": { "@id": "https://executivemochi.pk/#organization" },
                     "potentialAction": {
                       "@type": "SearchAction",
-                      "target": "https://executivemochi.pk/shop?q={search_term_string}",
+                      "target": {
+                        "@type": "EntryPoint",
+                        "urlTemplate": "https://executivemochi.pk/shop?search={search_term_string}"
+                      },
                       "query-input": "required name=search_term_string"
                     }
                   }

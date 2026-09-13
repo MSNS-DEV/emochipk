@@ -1,15 +1,14 @@
-import Script from 'next/script'
-
 interface JsonLdProps {
-  data: any
+  id?: string;
+  data: unknown;
 }
 
-export function JsonLd({ data }: JsonLdProps) {
+export function JsonLd({ id, data }: JsonLdProps) {
   return (
-    <Script
-      id="json-ld"
+    <script
+      id={id}
       type="application/ld+json"
       dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }}
     />
-  )
+  );
 }

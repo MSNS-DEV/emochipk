@@ -2,6 +2,21 @@ import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
 import { Scissors, Hammer, Star, Clock } from "lucide-react"
+import type { Metadata } from 'next'
+
+export const metadata: Metadata = {
+  title: 'Artisan Craftsmanship & Pure Leather',
+  description:
+    'Discover how Executive Mochi handcrafted shoes are made: traditional hand-lasting, full-grain calf skin leather, Goodyear welted durability, and master finishing in Pakistan.',
+  alternates: {
+    canonical: 'https://executivemochi.pk/craftsmanship',
+  },
+  openGraph: {
+    title: 'Artisan Footwear Craftsmanship | Executive Mochi Pakistan',
+    description: 'Learn about our 6-step artisanal shoemaking process: from hide selection to hand lasting and mirror-shine finishing.',
+    url: 'https://executivemochi.pk/craftsmanship',
+  },
+};
 
 const steps = [
   {
