@@ -49,9 +49,29 @@ export async function GET(
       },
     });
   } catch (error: unknown) {
-    const code = (error as { name?: string })?.name;
-    if (code === 'NoSuchKey' || code === 'NotFound') {
-      return NextResponse.json({ error: 'Image not found' }, { status: 404 });
+    const err = error as {
+      name?: string;
+      Code?: string;
+      code?: string;
+      $metadata?: { httpStatusCode?: number };
+    };
+    const isNotFound =
+      err?.name === 'NoSuchKey' ||
+      err?.name === 'NotFound' ||
+      err?.Code === 'NoSuchKey' ||
+      err?.code === 'NoSuchKey' ||
+      err?.$metadata?.httpStatusCode === 404;
+
+    if (isNotFound) {
+      return NextResponse.json(
+        { error: 'Image not found' },
+        {
+          status: 404,
+          headers: {
+            'Cache-Control': 'public, max-age=86400, s-maxage=86400',
+          },
+        }
+      );
     }
     console.error('[image-proxy]', error);
     return NextResponse.json({ error: 'Failed to fetch image' }, { status: 500 });

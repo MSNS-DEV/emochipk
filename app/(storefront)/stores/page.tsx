@@ -1,5 +1,20 @@
 import { Card, CardContent } from "@/components/ui/card"
 import { MapPin, Phone, Mail, Clock, Navigation } from "lucide-react"
+import type { Metadata } from 'next'
+
+export const metadata: Metadata = {
+  title: 'Store Locations in Pakistan | Retail Outlets',
+  description:
+    'Visit Executive Mochi physical retail stores in Ghakhar (GT Road) and Pasrur (Timber Market). Experience bespoke fitting and handcrafted leather shoes in person.',
+  alternates: {
+    canonical: 'https://executivemochi.pk/stores',
+  },
+  openGraph: {
+    title: 'Executive Mochi Stores in Pakistan | Ghakhar & Pasrur',
+    description: 'Visit our flagship and branch retail outlets for bespoke fitting and handcrafted leather footwear.',
+    url: 'https://executivemochi.pk/stores',
+  },
+};
 
 const stores = [
   {

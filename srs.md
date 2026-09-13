@@ -6,24 +6,24 @@ E-Commerce Platform
 
 **SOFTWARE REQUIREMENTS SPECIFICATION**
 
-Version 1.0 \| April 1, 2026 \| Status: Draft
+Version 1.2 \| September 14, 2026 \| Status: Production Baseline
 
   ----------------------- ------------------------------------------------------
   **Document Title**      Software Requirements Specification (SRS)
 
   **System**              Executive Mochi E-Commerce Platform
 
-  **Version**             1.0
+  **Version**             1.2
 
-  **Date**                April 1, 2026
+  **Date**                September 14, 2026
 
-  **Status**              Draft
+  **Status**              Production Baseline
 
   **Prepared For**        Executive Mochi --- Development & Stakeholder Teams
 
-  **Technology Stack**    Next.js 15 · tRPC · Prisma · PostgreSQL · TypeScript
+  **Technology Stack**    Next.js 16 · React 19 · tRPC · Prisma · PostgreSQL · Tailwind CSS 4 · TypeScript
 
-  **Deployment**          Vercel (Frontend) · GCS (File Storage)
+  **Deployment**          Vercel (Frontend & Serverless) · Cloudflare R2 (Zero-Egress Media Storage)
   ----------------------- ------------------------------------------------------
 
   -----------------------------------------------------------------------
@@ -43,6 +43,10 @@ Version 1.0 \| April 1, 2026 \| Status: Draft
   0.4           March 28, 2026   Product Team       Added Antigravity development framework requirements
 
   1.0           April 1, 2026    Product Team       Final version --- complete SRS with Prisma schema alignment
+
+  1.1           September 14, 2026 Engineering Team   Added Section 3.10 Scheduled Automation and Background Cron Jobs (Proposed)
+
+  1.2           September 14, 2026 Engineering Team   Production architecture sync: Next.js 16 & React 19, Cloudflare R2 Zero-Egress media, Google Merchant Center & Customer Reviews, Meta CAPI, 1,269+ product dynamic SEO sitemap, GEO (llms.txt), and card payments with 8-digit BIN discount engine
   ------------- ---------------- ------------------ -------------------------------------------------------------------
 
   -----------------------------------------------------------------------
@@ -70,6 +74,12 @@ The following keyword conventions are used throughout this document to indicate 
   **MAY**          **Optional feature**                Inclusion is at the discretion of the development team based on time and budget.
 
   **FR-XXX-NN**    **Functional requirement ID**       Prefix indicates module (e.g., CAT = Catalog, INV = Inventory, ORD = Orders).
+
+  **FR-CRN-NN**    **Cron requirement ID**             Prefix indicates scheduled background automation module.
+
+  **FR-SEO-NN**    **SEO / GEO requirement ID**        Prefix indicates search engine and generative AI optimization module.
+
+  **FR-MKT-NN**    **Marketing requirement ID**        Prefix indicates marketing feeds and external catalog synchronization.
 
   **NFR-XXX-NN**   **Non-functional requirement ID**   Prefix indicates category (e.g., PERF = Performance, SEC = Security).
 
@@ -156,17 +166,17 @@ The application follows a modern, type-safe full-stack architecture built on the
   --------------------------- ----------------------------------------------------------------------------------------------------------------------------------------
   **Layer**                   **Technology & Notes**
 
-  **Frontend**                Next.js 15 (App Router) with React Server Components; Tailwind CSS for styling; shadcn/ui for component primitives.
+  **Frontend**                Next.js 16 (App Router with @next/swc-wasm-nodejs and webpack build) with React 19; Tailwind CSS 4 for styling; Radix UI & shadcn/ui for component primitives.
 
-  **API Layer**               tRPC providing fully type-safe, end-to-end API communication between client and server layers, eliminating API contract drift.
+  **API Layer**               tRPC v11 providing fully type-safe, end-to-end API communication between client and server layers, eliminating API contract drift.
 
-  **Data Layer**              Prisma ORM interfacing with a PostgreSQL database. Schema defined in Section 6.1 is the ground-truth data model.
+  **Data Layer**              Prisma Client 6 with PostgreSQL (Neon serverless pooler with connection limits). Schema defined in Section 6.1 is the ground-truth data model.
 
-  **Authentication**          NextAuth.js with Credentials Provider and JWT-based sessions. Role-based access enforced at the tRPC procedure level.
+  **Authentication**          NextAuth.js v4 with Credentials Provider and JWT-based sessions. Role-based access enforced at the tRPC procedure level.
 
-  **File Storage**            Google Cloud Storage (GCS) for product imagery, 360-degree videos, shipping labels, and PDF documents. Signed URL access for security.
+  **File Storage & Media**    Cloudflare R2 (S3-compatible bucket 'emochipk' via @aws-sdk/client-s3). Zero-Egress direct public CDN delivery (NEXT_PUBLIC_IMAGE_URL) and ahead-of-time AVIF/WebP image pre-optimization.
 
-  **External Integrations**   Courier APIs (Leopards, PostEx, Trax, Pakistan Post); Payment gateways (Safepay, JazzCash, Raast); SMS/WhatsApp gateway.
+  **External Integrations**   Courier APIs (Leopards, PostEx, Trax, TCS, Pakistan Post); Payment gateways (Safepay, JazzCash, Raast); Google Merchant Center (Content API & XML feed); Google Customer Reviews; Meta Conversions API (CAPI); SMS/WhatsApp gateway.
 
   **Development Platform**    Google Antigravity --- an agentic development IDE enabling autonomous AI agents to plan, implement, and verify features.
   --------------------------- ----------------------------------------------------------------------------------------------------------------------------------------
@@ -208,17 +218,17 @@ The Executive Mochi E-Commerce Platform delivers seven integrated feature domain
   -------------------------- -------------------------------------------------------------------
   **Component**              **Specification**
 
-  **Server Runtime**         Node.js LTS
+  **Server Runtime**         Node.js LTS (v20+)
 
-  **Web Framework**          Next.js 15 (App Router architecture)
+  **Web Framework**          Next.js 16 (App Router architecture with React 19)
 
-  **API Layer**              tRPC --- type-safe, end-to-end API communication
+  **API Layer**              tRPC v11 --- type-safe, end-to-end API communication
 
-  **Database**               PostgreSQL (primary) with Prisma ORM
+  **Database**               PostgreSQL (Neon serverless pooler) with Prisma ORM 6
 
-  **Authentication**         NextAuth.js with Credentials Provider; JWT-based sessions
+  **Authentication**         NextAuth.js v4 with Credentials Provider; JWT-based sessions
 
-  **File Storage**           Google Cloud Storage (GCS) with signed URL access
+  **File Storage**           Cloudflare R2 (S3-compatible bucket 'emochipk' via @aws-sdk/client-s3)
 
   **Client Runtime**         Modern web browser with HTML5, CSS3, and ES6+ JavaScript support
 
@@ -226,18 +236,18 @@ The Executive Mochi E-Commerce Platform delivers seven integrated feature domain
 
   **Development Platform**   Google Antigravity --- agentic development IDE
 
-  **Hosting**                Vercel (frontend and serverless API routes)
+  **Hosting**                Vercel (frontend and serverless API routes in Singapore region `sin1`)
   -------------------------- -------------------------------------------------------------------
 
 **2.5 Design and Implementation Constraints**
 
-**C-01:** The system SHALL be developed using Next.js 15, React, tRPC, Prisma ORM, and TypeScript as the core technology stack. No substitutions to these core technologies are permitted without a formal SRS revision.
+**C-01:** The system SHALL be developed using Next.js 16, React 19, tRPC v11, Prisma ORM 6, Tailwind CSS 4, and TypeScript as the core technology stack. No substitutions to these core technologies are permitted without a formal SRS revision.
 
 **C-02:** Authentication SHALL be handled exclusively by NextAuth.js using the Credentials Provider. Third-party OAuth providers (Google, Facebook) MAY be added in future versions.
 
-**C-03:** Styling SHALL utilise Tailwind CSS; shadcn/ui component primitives SHOULD be used for consistent UI across admin and customer-facing interfaces.
+**C-03:** Styling SHALL utilise Tailwind CSS 4; shadcn/ui and Radix UI component primitives SHOULD be used for consistent UI across admin and customer-facing interfaces.
 
-**C-04:** File uploads SHALL be managed via Google Cloud Storage using pre-signed URLs for secure, direct browser-to-storage uploads. No binary data SHALL pass through the application server.
+**C-04:** File uploads and media delivery SHALL be managed via Cloudflare R2 (bucket 'emochipk') via @aws-sdk/client-s3 with zero-egress direct CDN delivery (NEXT_PUBLIC_IMAGE_URL). Unoptimized Next.js image mode (images: { unoptimized: true }) SHALL be maintained to eliminate unnecessary Vercel Fast Data Transfer and compute bandwidth.
 
 **C-05:** PDF document generation (shipping labels, invoices, return forms, store credit vouchers) SHALL use the pdf-lib library.
 
@@ -245,7 +255,7 @@ The Executive Mochi E-Commerce Platform delivers seven integrated feature domain
 
 **C-07:** The database schema SHALL remain aligned with the definitions in Section 6.1 (Prisma Schema). Any schema changes require a formal SRS revision.
 
-**C-08:** All courier and payment gateway API keys SHALL be stored as environment variables, never committed to source control.
+**C-08:** All courier, payment gateway, Cloudflare R2, Google Merchant, and Meta CAPI API credentials SHALL be stored as environment variables, never committed to source control.
 
 **2.6 Assumptions and Dependencies**
 
@@ -300,13 +310,13 @@ This module governs the creation, management, and customer-facing presentation o
 
 **FR-CAT-10:** The system **SHALL** support high-resolution \'Deep Zoom\' imagery allowing customers to examine leather texture and stitching quality at magnification.
 
-**FR-CAT-11:** The system **SHALL** support 360-degree product videos for each product, stored in Google Cloud Storage and streamed to the frontend.
+**FR-CAT-11:** The system **SHALL** support 360-degree product videos and high-resolution media for each product, stored in Cloudflare R2 (bucket `emochipk` via `@aws-sdk/client-s3`) and served directly over CDN via `NEXT_PUBLIC_IMAGE_URL`.
 
 **FR-CAT-12:** The system **SHALL** allow administrators to upload multiple images per product, with the ability to designate a primary image and reorder images via drag-and-drop.
 
 **FR-CAT-13:** The system **SHALL** support color-based imagery, where selecting a color variant automatically displays product images specific to that color.
 
-**FR-CAT-14:** The system **SHALL** serve all product images optimised for web delivery in WebP format with responsive sizes (mobile, tablet, desktop) and lazy loading applied to off-screen images.
+**FR-CAT-14:** The system **SHALL** serve all product imagery via zero-egress Cloudflare R2 public CDN endpoints with ahead-of-time AVIF/WebP image pre-optimization, responsive viewport sizing (mobile, tablet, desktop), unoptimized Next.js pass-through mode (`images: { unoptimized: true }`) to eliminate serverless bandwidth and execution costs, and lazy loading applied to off-screen images.
 
 **3.1.4 Sizing Guide**
 
@@ -396,7 +406,19 @@ This module governs the complete order lifecycle from cart to delivery, optimise
 
 **FR-ORD-10:** The system **SHALL** integrate with local mobile wallet platforms: JazzCash Business API and EasyPaisa API.
 
-**FR-ORD-11:** The system **SHALL** integrate with card payment gateways (Safepay, PayFast) for credit and debit card transactions.
+**FR-ORD-11:** The system **SHALL** integrate with digital card payment gateways (primarily Safepay Checkout / QuickPay / Atoms) for secure Visa, Mastercard, and PayPak credit and debit card transactions.
+
+**FR-ORD-11a:** The system **SHALL** ensure PCI-DSS SAQ-A compliance during card transactions by preventing raw primary account numbers (PAN), CVVs, or expiration dates from traversing or persisting in merchant server memory or DOM. All card capture SHALL occur via Safepay secure hosted QuickPay modals or `@sfpy/atoms` embedded iframes.
+
+**FR-ORD-11b:** The system **SHALL** implement an 8-Digit Bank Identification Number (BIN) Discount Engine compliant with ISO/IEC 7812-1:2017. The engine SHALL:
+1. Detect customer card BIN prefixes on the checkout client via Longest-Prefix-Match (LPM) supporting both legacy 6-digit and ISO 8-digit ranges.
+2. Verify co-branded bank affiliations (e.g., HBL, Bank Alfalah, Meezan Bank, Standard Chartered Pakistan) and dynamically apply promotional percentage or fixed discounts before transaction token creation.
+3. Validate BIN discounts server-side during payment session creation to prevent client-side tampering of order amounts.
+
+**FR-ORD-11c:** The system **SHALL** authenticate Safepay payment confirmations via cryptographic webhook signatures:
+1. Verify the `x-sfpy-signature` header using HMAC-SHA512 computed over `JSON.stringify(payload.data)` using `SAFEPAY_WEBHOOK_SECRET`.
+2. Atomically transition order status from `PENDING_PAYMENT` to `PAID` within a database transaction upon signature validation, recording transaction reference and fee breakdown.
+3. Enforce a 15-minute checkout inventory hold with automatic unreserved inventory release if card payment fails or expires without completion.
 
 **FR-ORD-12:** The system **SHALL** prioritise Cash on Delivery (COD) as the primary displayed payment method for Pakistani customers, with a clear in-line explanation of the verification process.
 
@@ -620,6 +642,112 @@ This module defines requirements specific to development within the Google Antig
 
 **FR-ANT-08:** The system **SHALL** maintain an Agent Log of all automated interventions --- including the trigger event, proposed fix, tests run, and outcome --- for audit, debugging, and continuous improvement purposes.
 
+**3.10 Scheduled Automation and Background Cron Jobs (Proposed)**
+
+This module specifies automated, scheduled background tasks (Cron jobs) executed via Vercel Cron or serverless task runners to ensure multi-branch inventory integrity, automated logistics reconciliation, real-time Google Merchant Center feed synchronization, customer retention, and security compliance without requiring manual administrative execution.
+
+**3.10.1 Automated Courier Tracking and COD Settlement Sync**
+
+**FR-CRN-01:** The system **SHALL** execute a recurring courier tracking synchronization job on a bi-hourly schedule (`0 */2 * * *`). The job SHALL:
+1. Query all database orders currently in `SHIPPED` or `OUT_FOR_DELIVERY` status across active logistics carriers (Leopards, PostEx, Trax, TCS).
+2. Query respective carrier REST APIs with stored Airway Bill (AWB) or tracking numbers.
+3. Automatically append newly detected events to the `TrackingEvent` table.
+4. Transition `Order.status` to `DELIVERED` immediately upon carrier confirmation of doorstep receipt.
+5. Update `paymentStatus` to `COD_PENDING_COLLECTION` for Cash on Delivery orders upon delivery confirmation.
+6. Flag delivery failures, customer contact issues, or Return-to-Origin (`RTO`) events in real time for administrative and customer support intervention.
+
+**3.10.2 Google Merchant Center (GMC) Product Feed Synchronization**
+
+**FR-CRN-02:** The system **SHALL** execute a catalog synchronization job daily at midnight UTC (`0 0 * * *`). The job SHALL:
+1. Fetch all active footwear models and variants from the PostgreSQL database.
+2. Verify pricing, active promotional discounts, and variant stock availability (`in_stock` vs `out_of_stock`).
+3. Push structured product updates directly to Google Merchant Center via the Content API or refresh the cached static XML feed at `/api/gmc/feed`.
+4. Log item validation warnings and disapproved attributes to prevent Google Shopping account suspension.
+
+**3.10.3 Inventory Hold Expiration and Abandoned Checkout Cleanup**
+
+**FR-CRN-03:** The system **SHALL** execute a stock reservation reclamation job every 30 minutes (`*/30 * * * *`). The job SHALL:
+1. Identify all temporary inventory holds in `Inventory.reserved` associated with pending digital card sessions or unverified COD checkouts older than 30 minutes (configurable via `INVENTORY_HOLD_TTL_MINUTES`).
+2. Release reserved variant quantities back to available inventory by atomically decrementing `Inventory.reserved` and restoring `Inventory.quantity`.
+3. Mark abandoned checkout orders as `CANCELLED` with reason code `ABANDONED_CHECKOUT_TIMEOUT`.
+4. Prevent physical inventory at Pasrur and Daska branches from being indefinitely locked by abandoned browser sessions.
+
+**3.10.4 Store Credit Voucher Expiry Processing**
+
+**FR-CRN-04:** The system **SHALL** execute a store credit audit job daily at 01:00 AM UTC (`0 1 * * *`). The job SHALL:
+1. Scan all `StoreCredit` vouchers where `status = ACTIVE` and `expiresAt < CURRENT_TIMESTAMP`.
+2. Transition voucher status to `EXPIRED` within an atomic database transaction.
+3. Generate an audit log record documenting credit expiration to prevent post-expiry redemption at online checkout or in-store POS.
+
+**3.10.5 Multi-Branch Low-Stock and Reorder Digest**
+
+**FR-CRN-05:** The system **SHALL** execute a stock replenishment digest job daily at 09:00 AM PKT (`0 4 * * *` UTC). The job SHALL:
+1. Scan all active inventory items where `Inventory.quantity <= Inventory.lowStockThreshold`.
+2. Aggregate low-stock SKUs grouped by physical branch (Pasrur workshop, Ghakhar retail, Daska distribution).
+3. Generate and dispatch a consolidated low-stock summary via email/WhatsApp to workshop master craftsmen and administrators to trigger batch production.
+
+**3.10.6 Post-Delivery Customer Review Reminders and Loyalty Tier Elevation**
+
+**FR-CRN-06:** The system **SHALL** execute a customer feedback and loyalty update job daily at 02:00 PM PKT (`0 9 * * *` UTC). The job SHALL:
+1. Query orders with `status = DELIVERED` where delivery occurred between 5 and 7 days prior.
+2. Filter for customers who have not yet submitted a verified product review for that order.
+3. Dispatch automated review invitation notifications (WhatsApp/Email) with direct deep-links to the product review form.
+4. Recalculate customer `loyaltyPoints` based on successful deliveries and automatically elevate qualifying customers across membership tiers (`BRONZE` -> `SILVER` -> `GOLD`).
+
+**3.10.7 Dynamic Search Engine Sitemap Freshness and Indexation Ping**
+
+**FR-CRN-07:** The system **SHALL** execute a search engine indexing freshness job weekly on Sunday at 03:00 AM UTC (`0 3 * * 0`). The job SHALL:
+1. Verify generation and validity of the dynamic XML sitemap (`/sitemap.xml`) encompassing all 1,269+ active catalog items.
+2. Dispatch HTTP pings to Google Search Central and Bing Webmaster endpoints with the updated sitemap URL.
+3. Validate accessibility of `/llms.txt` and `/llms-full.txt` for Generative AI crawlers.
+
+**3.10.8 Background Automation Security and Execution Standards**
+
+**FR-CRN-08:** The system **SHALL** protect all cron route endpoints (`/api/cron/*`) using bearer token authorization:
+1. Verify that the incoming request header contains `Authorization: Bearer ${CRON_SECRET}` matching the server-side environment secret.
+2. Reject unauthenticated requests with HTTP 401 Unauthorized to prevent denial-of-service or unauthorized database execution.
+3. Enforce maximum execution timeout limits compliant with serverless compute configurations (e.g. Vercel maxDuration 60s).
+
+**3.11 Search Engine Optimization (SEO), Generative Engine Optimization (GEO) & Marketing Integrations**
+
+This module governs organic search discovery, Generative AI recommendations, rich product schemas, and automated marketing feeds across Google, Bing, Meta, and modern LLMs.
+
+**3.11.1 Dynamic XML Sitemap & Search Indexation Freshness**
+
+**FR-SEO-01:** The system **SHALL** generate a dynamic, high-performance XML sitemap (`app/sitemap.ts` served at `/sitemap.xml`) that:
+1. Automatically indexes all 1,269+ active product SKUs, product category routes, and brand landing pages directly from the database.
+2. Implements resilient error fallbacks (e.g. database retry mechanisms, fallback query drivers, and cached static fallbacks) to prevent 5xx crawler errors during database connection pool saturation.
+3. Specifies exact `lastModified`, `changeFrequency`, and `priority` metadata per URL according to Google Search Central and Bing Webmaster standards.
+
+**3.11.2 Canonical URL Enforcement and Redirect Normalization**
+
+**FR-SEO-02:** The system **SHALL** enforce strict canonical URL normalization across all customer-facing routes:
+1. Define self-referential canonical tags (`<link rel="canonical" href="...">`) across all product, collection, and informational pages to resolve "Duplicate without user-selected canonical" indexing coverage defects.
+2. Eliminate redirect chains and soft-404 states by invoking Next.js `notFound()` for non-existent or inactive products and removing trailing slashes uniformly.
+3. Prevent duplicate branding in page titles by ensuring product metadata returns bare titles that are formatted once by the root layout template (`%s | Executive Mochi`).
+
+**3.11.3 Structured Data & Rich Schema Markup**
+
+**FR-SEO-03:** The system **SHALL** embed complete, valid JSON-LD structured data on all storefront pages:
+1. `schema.org/Product` schemas containing name, description, high-resolution R2 image URLs, brand (`Executive Mochi`), SKU, availability (`https://schema.org/InStock`), price currency (`PKR`), and aggregate customer rating.
+2. `schema.org/BreadcrumbList` schemas representing the hierarchical path (Home > Category > Product) for enhanced Google Search breadcrumb navigation snippets.
+3. `schema.org/Organization` and `schema.org/LocalBusiness` schemas in the root layout referencing the verified brand name, Pasrur/Daska workshop locations, contact details, social profiles, and PNG logo.
+
+**3.11.4 Generative Engine Optimization (GEO) for AI Models**
+
+**FR-SEO-04:** The system **SHALL** provide machine-readable documentation compliant with the `llms.txt` standard (`https://llmstxt.org/`):
+1. Serve `/llms.txt` containing brand identity, craftsmanship summary (100% genuine handcrafted cow/calf leather from Pasrur and Daska), pricing currency (PKR), nationwide COD terms, and direct URLs to primary footwear categories.
+2. Serve `/llms-full.txt` providing a comprehensive, structured text catalog of all active footwear styles, matrix variations, occasion guides, and sizing instructions for AI model retrieval (ChatGPT, Perplexity, Gemini, Claude).
+3. Configure `app/robots.ts` to grant full crawl permissions to Generative AI user agents (including `GPTBot`, `PerplexityBot`, `ClaudeBot`, `Google-Extended`, and `Applebot`).
+
+**3.11.5 Marketing Feeds & Server-Side Telemetry**
+
+**FR-MKT-01:** The system **SHALL** integrate with Google Merchant Center (GMC) via scheduled Content API v2.1 synchronization and an automated XML product feed (`/api/feeds/google-merchant.xml`) adhering to Google Shopping attribute specifications (id, title, description, link, image_link, availability, price, brand, condition, google_product_category).
+
+**FR-MKT-02:** The system **SHALL** implement the Google Customer Reviews post-purchase survey opt-in module on the order confirmation screen, allowing verified buyers to rate their purchasing experience and contribute to the brand's Google Merchant seller rating.
+
+**FR-MKT-03:** The system **SHALL** transmit server-side conversion events via the Meta Conversions API (CAPI) on order completion (`Purchase`), matching customer data (hashed email, phone, city) to eliminate signal loss from client-side ad-blockers and browser cookie restrictions.
+
   -----------------------------------------------------------------------
   **4. EXTERNAL INTERFACE REQUIREMENTS**
 
@@ -672,11 +800,17 @@ This module defines requirements specific to development within the Google Antig
 
   **IF-SW-09**   **Prisma ORM + PostgreSQL**   Type-safe database access for all models; transaction management via Prisma \$transaction API.
 
-  **IF-SW-10**   **Google Cloud Storage**      Pre-signed URL uploads for product images, 360-degree videos, and generated PDFs.
+  **IF-SW-10**   **Cloudflare R2**             S3-compatible bucket ('emochipk' via @aws-sdk/client-s3); zero-egress public CDN delivery (NEXT_PUBLIC_IMAGE_URL); WebP/AVIF product imagery, 360-degree videos, and generated PDFs.
 
   **IF-SW-11**   **pdf-lib**                   Server-side PDF generation for shipping labels, packing slips, invoices, and credit vouchers.
 
   **IF-SW-12**   **NextAuth.js**               JWT session management; Credentials Provider; role-based session claims.
+
+  **IF-SW-13**   **Vercel Cron**               Scheduled serverless trigger runner; Authorization Bearer CRON_SECRET token verification; UTC schedules.
+
+  **IF-SW-14**   **Google Merchant Center**    Automated product catalog feed sync via Content API v2.1 and XML feed (/api/feeds/google-merchant.xml); Google Customer Reviews survey opt-in module.
+
+  **IF-SW-15**   **Meta Conversions API (CAPI)** Server-side purchase event tracking and hashed customer attribution for Facebook/Instagram ads.
   -------------- ----------------------------- ---------------------------------------------------------------------------------------------------
 
 **4.4 Communications Interfaces**
@@ -707,7 +841,7 @@ This module defines requirements specific to development within the Google Antig
 
   **NFR-PERF-04**   Checkout Performance: The checkout flow SHALL complete order placement within 10 seconds from \'Proceed to Checkout\' to Order Confirmation screen.
 
-  **NFR-PERF-05**   Image Delivery: Product images SHALL be served in WebP format with responsive sizes generated at build time; lazy loading SHALL be implemented for all off-screen images.
+  **NFR-PERF-05**   Image Delivery: Product images SHALL be served in AVIF and WebP formats directly via Cloudflare R2 zero-egress CDN endpoints (NEXT_PUBLIC_IMAGE_URL) with responsive sizes; lazy loading SHALL be implemented for all off-screen images.
   ----------------- --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 **5.2 Security Requirements**
@@ -748,7 +882,7 @@ This module defines requirements specific to development within the Google Antig
 
 **NFR-REL-03:** Transactional Integrity: All multi-step database operations (order creation with inventory decrement, inter-branch transfers, return processing) SHALL be executed within a single Prisma \$transaction to ensure atomicity and prevent partial state.
 
-**NFR-REL-04:** Backup: Automated, tested database backups SHALL be performed at minimum daily, retained for a minimum of 30 days, and stored in a geographically separate GCS bucket from the primary database.
+**NFR-REL-04:** Backup: Automated, tested database backups SHALL be performed at minimum daily, retained for a minimum of 30 days, and stored in a geographically separate Cloudflare R2 / S3-compatible bucket from the primary database.
 
 **5.5 Maintainability Requirements**
 
@@ -1396,4 +1530,4 @@ The following table maps every possible order status transition, documenting the
 
 **--- End of Document ---**
 
-*Executive Mochi SRS v1.0 \| executivemochi.pk \| April 1, 2026*
+*Executive Mochi SRS v1.2 \| executivemochi.pk \| September 14, 2026*

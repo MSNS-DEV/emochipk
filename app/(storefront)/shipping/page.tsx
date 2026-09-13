@@ -1,6 +1,21 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Truck, Clock, MapPin, Package, ShieldCheck, PhoneCall } from "lucide-react"
 import Link from "next/link"
+import type { Metadata } from 'next'
+
+export const metadata: Metadata = {
+  title: 'Shipping Policy & Delivery Timelines',
+  description:
+    'Executive Mochi shipping policies: complimentary delivery on orders over PKR 5,000, 2-4 business day transit via Leopards, PostEx, and Trax couriers nationwide in Pakistan.',
+  alternates: {
+    canonical: 'https://executivemochi.pk/shipping',
+  },
+  openGraph: {
+    title: 'Executive Mochi Shipping & Delivery Policy',
+    description: 'Fast nationwide shipping with Cash on Delivery across Pakistan. Free shipping on orders over PKR 5,000.',
+    url: 'https://executivemochi.pk/shipping',
+  },
+};
 
 const shippingZones = [
   { zone: "Pasrur & Ghakhar", delivery: "Same Day / Next Day", fee: "Free", note: "Order before 3 PM for same-day delivery" },

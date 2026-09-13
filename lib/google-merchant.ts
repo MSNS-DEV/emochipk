@@ -274,7 +274,7 @@ export function buildGMCProductItem(
     .map((img) => normalizeUrl(img.url));
 
   // Link to storefront
-  const link = `${appUrl}/products/${product.slug}?variant=${encodeURIComponent(variant.sku)}`;
+  const link = `${appUrl}/product/${product.slug}?variant=${encodeURIComponent(variant.sku)}`;
 
   // Price calculations
   const basePriceNum = Number(product.basePrice);

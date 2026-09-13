@@ -1,4 +1,19 @@
+import type { Metadata } from 'next';
 import { Shield, Eye, Lock, UserCheck, Mail } from "lucide-react"
+
+export const metadata: Metadata = {
+  title: 'Privacy Policy',
+  description:
+    'Executive Mochi privacy policy detailing secure personal information handling, customer shoe size preference storage, and safe encrypted transactions.',
+  alternates: {
+    canonical: 'https://executivemochi.pk/privacy',
+  },
+  openGraph: {
+    title: 'Privacy Policy | Executive Mochi Pakistan',
+    description: 'Learn how Executive Mochi protects your data and guarantees customer privacy.',
+    url: 'https://executivemochi.pk/privacy',
+  },
+};
 
 export default function PrivacyPage() {
   return (

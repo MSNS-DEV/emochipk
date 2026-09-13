@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
@@ -17,9 +18,18 @@ import {
   kidsSubGroups,
 } from '@/lib/utils/catalog';
 
-export const metadata = {
-  title: 'Size Guide | Executive Mochi',
-  description: 'Find your perfect fit with our official Executive Mochi shoe size guide for Men, Women, and Kids collections.',
+export const metadata: Metadata = {
+  title: 'Footwear Size Guide (UK / EU / CM)',
+  description:
+    'Find your perfect shoe fit with our official Executive Mochi shoe size conversion chart for Men, Women, and Kids. Detailed width measurements and measuring guide.',
+  alternates: {
+    canonical: 'https://executivemochi.pk/size-guide',
+  },
+  openGraph: {
+    title: 'Executive Mochi Size Guide | Men, Women & Kids',
+    description: 'UK, US, EU, and CM footwear size conversion charts with foot measurement instructions.',
+    url: 'https://executivemochi.pk/size-guide',
+  },
 };
 
 const widthGuide = [

@@ -5,12 +5,14 @@ import { MapPin, Phone, Mail, Clock, Facebook, Instagram } from 'lucide-react';
 const footerLinks = {
   shop: [
     { name: 'All Products', href: '/shop' },
-    { name: 'Formal Shoes', href: '/shop/formal-shoes' },
-    { name: 'Casual Shoes', href: '/shop/casual-shoes' },
-    { name: 'Boots', href: '/shop/boots' },
-    { name: 'Khussas', href: '/shop/khussas' },
+    { name: 'Formal Oxfords', href: '/shop?style=OXFORD' },
+    { name: 'Leather Loafers', href: '/shop?style=LOAFERS' },
+    { name: 'Peshawari Chappals', href: '/shop?style=PESHAWARI' },
+    { name: 'Casual Moccasins', href: '/shop?style=MOCCASINS' },
+    { name: 'Gents Collection', href: '/shop?category=MEN' },
+    { name: 'Ladies Collection', href: '/shop?category=WOMEN' },
     { name: 'New Arrivals', href: '/shop?filter=new' },
-    { name: 'Sale', href: '/shop?filter=sale' },
+    { name: 'Sale 🔥', href: '/shop?filter=sale' },
   ],
   customerService: [
     { name: 'Contact Us', href: '/contact' },

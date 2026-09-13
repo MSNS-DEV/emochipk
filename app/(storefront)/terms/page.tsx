@@ -1,5 +1,20 @@
+import type { Metadata } from 'next';
 import { Scale } from "lucide-react"
 import Link from "next/link"
+
+export const metadata: Metadata = {
+  title: 'Terms of Service',
+  description:
+    'Terms and conditions for purchasing handcrafted footwear from Executive Mochi. Clear guidelines on ordering, pricing, courier delivery, and warranty policies.',
+  alternates: {
+    canonical: 'https://executivemochi.pk/terms',
+  },
+  openGraph: {
+    title: 'Terms of Service | Executive Mochi Pakistan',
+    description: 'Guidelines and conditions for purchasing from Executive Mochi online store.',
+    url: 'https://executivemochi.pk/terms',
+  },
+};
 
 const sections = [
   {
