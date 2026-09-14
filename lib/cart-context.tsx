@@ -7,7 +7,7 @@ interface CartContextType {
   cart: Cart;
   itemCount: number;
   isLoading: boolean;
-  addToCart: (variantId: string, productData: { name: string; price: number; image?: string }, quantity?: number) => void;
+  addToCart: (variantId: string, productData: { name: string; price: number; image?: string; slug?: string; description?: string; color?: string; size?: string; sku?: string }, quantity?: number) => void;
   removeFromCart: (itemId: string) => void;
   updateQuantity: (itemId: string, quantity: number) => void;
   clearCart: () => void;
@@ -61,7 +61,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     if (!isLoading) localStorage.setItem('mochi_cart', JSON.stringify(cart));
   }, [cart, isLoading]);
 
-  const addToCart = useCallback((variantId: string, productData: { name: string; price: number; image?: string }, quantity = 1) => {
+  const addToCart = useCallback((variantId: string, productData: { name: string; price: number; image?: string; slug?: string; description?: string; color?: string; size?: string; sku?: string }, quantity = 1) => {
     setCart((prev) => {
       const idx = prev.items.findIndex((i) => i.variantId === variantId);
       let items: CartItem[];
@@ -73,7 +73,21 @@ export function CartProvider({ children }: { children: ReactNode }) {
       } else {
         const newItem: CartItem = {
           id: `item-${Date.now()}`, cartId: prev.id, variantId,
-          variant: { id: variantId, name: productData.name, image: productData.image },
+          variant: {
+            id: variantId,
+            name: productData.name,
+            image: productData.image,
+            product: {
+              name: productData.name,
+              slug: productData.slug,
+              description: productData.description,
+              images: productData.image ? [{ url: productData.image }] : [],
+            },
+            color: productData.color,
+            size: productData.size,
+            sizeUK: productData.size,
+            sku: productData.sku,
+          },
           quantity, unitPrice: productData.price, totalPrice: productData.price * quantity,
         };
         items = [...prev.items, newItem];
