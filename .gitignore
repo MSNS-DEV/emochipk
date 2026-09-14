@@ -22,3 +22,5 @@ node_modules
 *.tsbuildinfo
 # Knowledge graph
 graphify-out/
+.neon
+.env*
