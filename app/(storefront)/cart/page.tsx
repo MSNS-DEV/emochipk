@@ -108,10 +108,10 @@ export default function CartPage() {
                     href={`/product/${item.variant?.product?.slug}`}
                     className="relative w-20 h-20 sm:w-24 sm:h-24 lg:w-32 lg:h-32 rounded-lg overflow-hidden bg-secondary/30 shrink-0"
                   >
-                    {item.variant?.product?.images[0] ? (
+                    {(item.variant?.product?.images?.[0]?.url ?? item.variant?.image) ? (
                       <Image
-                        src={item.variant.product.images[0].url}
-                        alt={item.variant.product.name}
+                        src={item.variant.product?.images?.[0]?.url ?? item.variant.image}
+                        alt={item.variant.product?.name ?? item.variant.name ?? 'Product'}
                         fill
                         className="object-cover"
                       />
@@ -130,7 +130,7 @@ export default function CartPage() {
                           href={`/product/${item.variant?.product?.slug}`}
                           className="font-serif text-sm sm:text-base lg:text-lg font-medium hover:text-primary transition-colors line-clamp-2"
                         >
-                          {item.variant?.product?.name || 'Product'}
+                          {item.variant?.product?.name || item.variant?.name || 'Product'}
                         </Link>
                         <button
                           onClick={() => removeFromCart(item.id)}
@@ -142,11 +142,16 @@ export default function CartPage() {
                         </button>
                       </div>
                       <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-                        {item.variant?.color} / Size {item.variant?.size}
+                        {item.variant?.color ? `${item.variant.color} / ` : ''}Size {item.variant?.size ?? item.variant?.sizeUK ?? '—'}
                       </p>
-                      <p className="text-xs text-muted-foreground">
-                        SKU: {item.variant?.sku}
-                      </p>
+                      {item.variant?.sku && (
+                        <p className="text-xs text-muted-foreground">SKU: {item.variant.sku}</p>
+                      )}
+                      {item.variant?.product?.description && (
+                        <p className="mt-2 line-clamp-2 text-xs leading-relaxed text-muted-foreground">
+                          {item.variant.product.description}
+                        </p>
+                      )}
                     </div>
 
                     <div className="flex items-center justify-between gap-2 mt-3 pt-2 border-t border-border/40">
