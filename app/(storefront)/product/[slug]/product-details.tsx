@@ -217,11 +217,16 @@ export function ProductDetails({ product }: ProductDetailsProps) {
     }
     addToCart(
       selectedVariant.id,
-      {
+        {
         name: product.name,
-        price: effectivePrice,
-        image: product.images[0]?.url,
-      },
+        price: effectivePrice + Number(selectedVariant.priceDelta ?? 0),
+        image: product.images.find((image) => image.colorTag === selectedColor)?.url ?? product.images[0]?.url,
+        slug: product.slug,
+        description: product.description,
+        color: selectedColor,
+        size: displaySize(selectedSize!),
+        sku: selectedVariant.sku ?? undefined,
+        },
       quantity
     );
     // Fire AddToCart CAPI event
@@ -660,9 +665,20 @@ export function ProductDetails({ product }: ProductDetailsProps) {
           {/* Share */}
           <div className="flex items-center gap-3">
             <span className="text-sm text-muted-foreground">Share:</span>
-            <Button variant="ghost" size="sm" className="h-8 gap-2 text-xs">
-              <Share2 className="h-3.5 w-3.5" />
-              Share
+      <Button
+        variant="ghost"
+        size="sm"
+        className="h-8 gap-2 text-xs"
+        onClick={async () => {
+          const shareData = { title: product.name, text: product.description, url: window.location.href };
+          const canShare = typeof navigator.share === 'function';
+          if (canShare) await navigator.share(shareData);
+          else await navigator.clipboard.writeText(window.location.href);
+          toast.success(canShare ? 'Product shared' : 'Product link copied');
+        }}
+      >
+        <Share2 className="h-3.5 w-3.5" />
+        Share
             </Button>
           </div>
         </div>

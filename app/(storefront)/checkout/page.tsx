@@ -413,6 +413,7 @@ export default function CheckoutPage() {
                           alt={(item.variant as any).product.name}
                           fill
                           className="object-cover"
+                          sizes="64px"
                         />
                       ) : (item.variant as any)?.image ? (
                         <Image
@@ -420,6 +421,7 @@ export default function CheckoutPage() {
                           alt={(item.variant as any).name ?? 'Product'}
                           fill
                           className="object-cover"
+                          sizes="64px"
                         />
                       ) : (
                         <div className="flex h-full items-center justify-center">

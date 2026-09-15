@@ -134,6 +134,10 @@ export function ProductCard({ product, className, displayColor }: ProductCardPro
           {product.name}
         </Link>
 
+        <p className="line-clamp-2 text-xs leading-relaxed text-muted-foreground">
+          {product.description || `Handcrafted ${getStyleLabel(product.style).toLowerCase()} designed for everyday comfort and lasting wear.`}
+        </p>
+
         {/* Style tag */}
         <p className="text-xs text-muted-foreground">
           {getStyleLabel(product.style)}
