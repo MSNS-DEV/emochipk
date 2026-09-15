@@ -11,7 +11,7 @@ import { getS3Client, getS3Bucket } from '@/lib/s3';
  * e.g. /api/images/products/1714660000000-shoe.jpg
  */
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ key: string[] }> }
 ): Promise<NextResponse> {
   const { key: keyParts } = await params;
@@ -31,6 +31,21 @@ export async function GET(
 
     if (!response.Body) {
       return NextResponse.json({ error: 'Object not found' }, { status: 404 });
+    }
+
+    // Return 304 Not Modified if client cache ETag matches S3 ETag
+    const clientEtag = request.headers.get('if-none-match');
+    if (clientEtag && response.ETag && clientEtag === response.ETag) {
+      return new NextResponse(null, {
+        status: 304,
+        headers: {
+          'Cache-Control': 'public, max-age=31536000, s-maxage=31536000, immutable',
+          'CDN-Cache-Control': 'public, max-age=31536000, immutable',
+          'Cloudflare-CDN-Cache-Control': 'public, max-age=31536000, immutable',
+          'Vercel-CDN-Cache-Control': 'public, max-age=31536000, immutable',
+          'ETag': response.ETag,
+        },
+      });
     }
 
     // Convert the readable stream to a Web ReadableStream

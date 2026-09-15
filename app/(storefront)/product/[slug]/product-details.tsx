@@ -251,6 +251,7 @@ export function ProductDetails({ product }: ProductDetailsProps) {
                 fill
                 className="object-cover"
                 priority
+                sizes="(min-width: 1024px) 50vw, 100vw"
               />
             ) : (
               <div className="flex h-full flex-col items-center justify-center gap-4 bg-gradient-to-br from-stone-100 to-stone-200 dark:from-stone-800 dark:to-stone-900">
@@ -300,6 +301,7 @@ export function ProductDetails({ product }: ProductDetailsProps) {
                     alt={image.altText ?? `${product.name} ${index + 1}`}
                     fill
                     className="object-cover"
+                    sizes="80px"
                   />
                 </button>
               ))}
