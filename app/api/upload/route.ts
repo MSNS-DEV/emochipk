@@ -60,6 +60,55 @@ const EXTENSION_MAP: Record<string, string> = {
   'image/avif': '.avif',
 };
 
+/**
+ * Compresses and optimizes uploaded image buffers before saving to Cloudflare R2 storage.
+ * - Resizes large dimensions down to maximum 1920x1920 (preserving aspect ratio)
+ * - Auto-orients image based on EXIF camera orientation tags
+ * - Encodes as WebP at quality 82 for optimal visual quality / file size ratio
+ * - Gracefully falls back to original buffer if sharp is not available on current platform
+ */
+async function optimizeUploadBuffer(
+  rawBuffer: Buffer,
+  detectedType: 'image/jpeg' | 'image/png' | 'image/webp' | 'image/avif'
+): Promise<{ buffer: Buffer; mimeType: string; extension: string }> {
+  try {
+    const sharpModule = await import('sharp').catch(() => null);
+    const sharpFactory = ((sharpModule as any)?.default ?? sharpModule) as any;
+
+    if (typeof sharpFactory !== 'function') {
+      return {
+        buffer: rawBuffer,
+        mimeType: detectedType,
+        extension: EXTENSION_MAP[detectedType] || '.jpg',
+      };
+    }
+
+    const compressedBuffer = await sharpFactory(rawBuffer)
+      .rotate() // auto-orient based on camera orientation EXIF
+      .resize({
+        width: 1920,
+        height: 1920,
+        fit: 'inside',
+        withoutEnlargement: true,
+      })
+      .webp({ quality: 82, effort: 4 })
+      .toBuffer();
+
+    return {
+      buffer: compressedBuffer,
+      mimeType: 'image/webp',
+      extension: '.webp',
+    };
+  } catch (err) {
+    console.warn('[upload] Image optimization fallback to raw buffer:', err);
+    return {
+      buffer: rawBuffer,
+      mimeType: detectedType,
+      extension: EXTENSION_MAP[detectedType] || '.jpg',
+    };
+  }
+}
+
 export async function POST(request: Request): Promise<NextResponse> {
   // 1. Enforce RBAC Authentication
   const session = await getServerSession(authOptions);
@@ -118,19 +167,22 @@ export async function POST(request: Request): Promise<NextResponse> {
     const s3 = getS3Client();
     const bucket = getS3Bucket();
 
-    // 4. Sanitize file name and prevent path traversal
-    const safeExtension = EXTENSION_MAP[detectedType] || '.jpg';
+    // 4. Optimize buffer (resize max 1920px, WebP compression, EXIF auto-rotate)
+    const { buffer: uploadBuffer, mimeType: finalMimeType, extension: finalExtension } =
+      await optimizeUploadBuffer(buffer, detectedType);
+
+    // 5. Sanitize file name and prevent path traversal
     const rawBaseName = path.basename(file.name).replace(/\.[^/.]+$/, '');
     const cleanBaseName = rawBaseName.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 40) || 'upload';
     const uniqueId = crypto.randomUUID().slice(0, 8);
-    const key = `products/${Date.now()}-${uniqueId}-${cleanBaseName}${safeExtension}`;
+    const key = `products/${Date.now()}-${uniqueId}-${cleanBaseName}${finalExtension}`;
 
     await s3.send(
       new PutObjectCommand({
         Bucket: bucket,
         Key: key,
-        Body: buffer,
-        ContentType: detectedType,
+        Body: uploadBuffer,
+        ContentType: finalMimeType,
       })
     );
 
