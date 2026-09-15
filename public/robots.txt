@@ -1,20 +1,4 @@
-import { NextResponse } from 'next/server';
-
-export const dynamic = 'force-dynamic';
-
-/**
- * Custom robots.txt route handler.
- * Next.js MetadataRoute.Robots discards non-standard directives like Content-Signal.
- * This handler emits a RFC-compliant robots.txt containing the draft-romm-aipref-contentsignals
- * directives for bot and AI crawl control.
- *
- * Directives:
- * Content-Signal: ai-train=no, search=yes, ai-input=no
- */
-export async function GET() {
-  const baseUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://executivemochi.pk').replace(/\/$/, '');
-
-  const content = `# Executive Mochi robots.txt
+# Executive Mochi robots.txt
 # Signals preferences for AI actions (IETF draft-romm-aipref-contentsignals)
 
 User-agent: *
@@ -172,14 +156,4 @@ Disallow: /admin/
 Disallow: /branch
 Disallow: /branch/
 
-Sitemap: ${baseUrl}/sitemap.xml
-`;
-
-  return new NextResponse(content.trim() + '\n', {
-    status: 200,
-    headers: {
-      'Content-Type': 'text/plain; charset=utf-8',
-      'Cache-Control': 'public, max-age=86400, stale-while-revalidate=3600',
-    },
-  });
-}
+Sitemap: https://executivemochi.pk/sitemap.xml

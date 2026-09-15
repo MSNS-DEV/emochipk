@@ -12,19 +12,15 @@ const rootDir = path.join(__dirname, '..');
 // 1. Robots.txt with Content Signals
 // ─────────────────────────────────────────────────────────────────────────────
 test('Robots.txt route emits Content-Signal and proper directives', async () => {
-  const robotsRoutePath = path.join(rootDir, 'app/robots.txt/route.ts');
-  assert.ok(fs.existsSync(robotsRoutePath), 'app/robots.txt/route.ts must exist');
+  const robotsPath = path.join(rootDir, 'public/robots.txt');
+  assert.ok(fs.existsSync(robotsPath), 'public/robots.txt must exist');
 
   // Verify app/robots.ts was removed to prevent route collision
   const oldRobotsPath = path.join(rootDir, 'app/robots.ts');
   assert.ok(!fs.existsSync(oldRobotsPath), 'app/robots.ts must be deleted');
 
-  // Read content of route.ts
-  const routeSource = fs.readFileSync(robotsRoutePath, 'utf8');
-
-  // Verify route exports GET handler and Content-Signal
-  assert.ok(routeSource.includes('export async function GET()'), 'Must export GET handler');
-  assert.ok(routeSource.includes('text/plain'), 'Must specify text/plain Content-Type');
+  // Read content of robots.txt
+  const routeSource = fs.readFileSync(robotsPath, 'utf8');
 
   // Verify Content-Signal directive exists under User-agent: *
   assert.match(
@@ -45,7 +41,7 @@ test('Robots.txt route emits Content-Signal and proper directives', async () => 
   assert.ok(routeSource.includes('User-agent: Googlebot-Image'), 'Must mention Googlebot-Image');
 
   // Verify sitemap directive
-  assert.match(routeSource, /Sitemap:\s*\$\{baseUrl\}\/sitemap\.xml/, 'Must contain Sitemap directive');
+  assert.match(routeSource, /Sitemap:\s*(https?:\/\/[^\s]+|\$\{baseUrl\})\/sitemap\.xml/, 'Must contain Sitemap directive');
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
