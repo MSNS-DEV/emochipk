@@ -24,10 +24,11 @@ async function fetchProductsForSitemap(): Promise<Array<{ slug: string; updatedA
   }
 
   try {
-    const dbUrl =
-      process.env.DIRECT_URL ||
-      process.env.DATABASE_URL ||
-      'postgresql://neondb_owner:npg_si9fM8gyAZCx@ep-young-scene-a1czywn2-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require';
+    const dbUrl = process.env.DIRECT_URL || process.env.DATABASE_URL;
+    if (!dbUrl) {
+      console.warn('[sitemap] Neither DIRECT_URL nor DATABASE_URL is set; skipping pg fallback');
+      return [];
+    }
 
     const pool = new pg.Pool({ connectionString: dbUrl });
     try {

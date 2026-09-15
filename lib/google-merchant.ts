@@ -195,10 +195,10 @@ export async function fetchProductsForGMC(): Promise<any[]> {
 }
 
 async function fetchProductsViaPg(): Promise<any[]> {
-  const dbUrl =
-    process.env.DIRECT_URL ||
-    process.env.DATABASE_URL ||
-    "postgresql://neondb_owner:npg_si9fM8gyAZCx@ep-young-scene-a1czywn2-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require";
+  const dbUrl = process.env.DIRECT_URL || process.env.DATABASE_URL;
+  if (!dbUrl) {
+    throw new Error("DATABASE_URL or DIRECT_URL is required to fetch products via pg fallback.");
+  }
 
   const pool = new pg.Pool({ connectionString: dbUrl });
   try {

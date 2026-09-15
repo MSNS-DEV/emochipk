@@ -10,7 +10,7 @@ import { db } from "@/server/db";
  */
 export const authOptions: NextAuthOptions = {
   session: { strategy: "jwt" },
-  secret: process.env.NEXTAUTH_SECRET,
+  secret: process.env.NEXTAUTH_SECRET || process.env.AUTH_SECRET,
   pages: {
     signIn: "/login",
     error: "/login",
@@ -25,8 +25,9 @@ export const authOptions: NextAuthOptions = {
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null;
 
+        const sanitizedEmail = credentials.email.trim().toLowerCase();
         const user = await db.user.findUnique({
-          where: { email: credentials.email.toLowerCase() },
+          where: { email: sanitizedEmail },
         });
 
         if (!user || !user.isActive) return null;

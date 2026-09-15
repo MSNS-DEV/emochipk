@@ -62,30 +62,37 @@ export const protectedProcedure = t.procedure.use(({ ctx, next }) => {
 });
 
 /**
- * Admin-only procedure — requires ADMIN role (NFR-SEC-04)
- * Used for: product management, all reports, system config
+ * Admin-only procedure — requires active ADMIN role (NFR-SEC-04)
+ * Validates against database to ensure immediate revocation on deactivation or role change
  */
-export const adminProcedure = t.procedure.use(({ ctx, next }) => {
-  if (!ctx.session?.user) {
+export const adminProcedure = t.procedure.use(async ({ ctx, next }) => {
+  if (!ctx.session?.user?.id) {
     throw new TRPCError({ code: "UNAUTHORIZED" });
   }
-  if (ctx.session.user.role !== "ADMIN") {
-    throw new TRPCError({ code: "FORBIDDEN", message: "Admin access required." });
+  const dbUser = await ctx.db.user.findUnique({
+    where: { id: ctx.session.user.id },
+    select: { role: true, isActive: true },
+  });
+  if (!dbUser || !dbUser.isActive || dbUser.role !== "ADMIN") {
+    throw new TRPCError({ code: "FORBIDDEN", message: "Admin access required or account deactivated." });
   }
   return next({ ctx: { ...ctx, session: ctx.session } });
 });
 
 /**
- * Branch Manager procedure — requires BRANCH_MANAGER or ADMIN role
- * Used for: branch operations, order fulfillment, inventory management
+ * Branch Manager procedure — requires active BRANCH_MANAGER or ADMIN role
+ * Validates against database to ensure immediate revocation on deactivation or role change
  */
-export const branchManagerProcedure = t.procedure.use(({ ctx, next }) => {
-  if (!ctx.session?.user) {
+export const branchManagerProcedure = t.procedure.use(async ({ ctx, next }) => {
+  if (!ctx.session?.user?.id) {
     throw new TRPCError({ code: "UNAUTHORIZED" });
   }
-  const role = ctx.session.user.role;
-  if (role !== "BRANCH_MANAGER" && role !== "ADMIN") {
-    throw new TRPCError({ code: "FORBIDDEN", message: "Branch manager access required." });
+  const dbUser = await ctx.db.user.findUnique({
+    where: { id: ctx.session.user.id },
+    select: { role: true, isActive: true },
+  });
+  if (!dbUser || !dbUser.isActive || (dbUser.role !== "BRANCH_MANAGER" && dbUser.role !== "ADMIN")) {
+    throw new TRPCError({ code: "FORBIDDEN", message: "Branch manager access required or account deactivated." });
   }
   return next({ ctx: { ...ctx, session: ctx.session } });
 });

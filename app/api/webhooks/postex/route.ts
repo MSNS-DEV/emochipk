@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/server/db";
-import type { PostExWebhookPayload } from "@/lib/courier/types";
 import type { OrderStatus } from "@prisma/client";
+import { z } from "zod";
+import crypto from "crypto";
+
+export const dynamic = "force-dynamic";
 
 // ─────────────────────────────────────────────
 // PostEx Webhook Handler
@@ -31,6 +34,47 @@ const STATUS_MAP: Record<string, OrderStatus> = {
   "Exception":        "SHIPPED",
 };
 
+const PostExWebhookSchema = z.object({
+  trackingNumber: z.string().min(1),
+  transactionStatus: z.string().min(1),
+  orderRefNumber: z.string().optional(),
+  transactionDateTime: z.string().optional(),
+  codAmount: z.number().optional(),
+  location: z.string().optional(),
+});
+
+/**
+ * Validates webhook token using constant-time comparison to prevent timing attacks.
+ * Fails closed if no secret is configured in production.
+ */
+function verifyPostExAuth(req: NextRequest): boolean {
+  const expectedSecret = process.env.POSTEX_WEBHOOK_SECRET || process.env.POSTEX_API_TOKEN;
+  if (!expectedSecret) {
+    console.error("[PostEx Webhook] Neither POSTEX_WEBHOOK_SECRET nor POSTEX_API_TOKEN is configured in environment. Rejecting request.");
+    return false;
+  }
+
+  const headerToken =
+    req.headers.get("token") ||
+    req.headers.get("x-postex-token") ||
+    req.headers.get("x-api-key");
+  const authHeader = req.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
+  const queryToken =
+    req.nextUrl.searchParams.get("token") ||
+    req.nextUrl.searchParams.get("secret");
+
+  const providedToken = headerToken || authHeader || queryToken || "";
+
+  const providedBuf = Buffer.from(providedToken);
+  const expectedBuf = Buffer.from(expectedSecret);
+
+  if (providedBuf.length === 0 || providedBuf.length !== expectedBuf.length) {
+    return false;
+  }
+
+  return crypto.timingSafeEqual(providedBuf, expectedBuf);
+}
+
 /**
  * Determines if moving from current to next status is a valid forward progression.
  */
@@ -55,20 +99,33 @@ function isStatusProgression(current: string, next: string): boolean {
  * POST /api/webhooks/postex
  *
  * Receives tracking status updates from PostEx.
+ * - Authenticates webhook signature/token
+ * - Validates schema with Zod
  * - Creates a TrackingEvent record
  * - Updates the Order status if it has progressed forward
  */
 export async function POST(request: NextRequest) {
-  try {
-    const body = (await request.json()) as PostExWebhookPayload;
+  // 1. Authenticate webhook request
+  if (!verifyPostExAuth(request)) {
+    console.error("[PostEx Webhook] Unauthorized access attempt: Invalid token");
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
-    // Validate required fields
-    if (!body.trackingNumber || !body.transactionStatus) {
+  try {
+    const rawJson = await request.json().catch(() => null);
+    if (!rawJson) {
+      return NextResponse.json({ error: "Malformed JSON body" }, { status: 400 });
+    }
+
+    const parsed = PostExWebhookSchema.safeParse(rawJson);
+    if (!parsed.success) {
       return NextResponse.json(
-        { error: "Missing required fields: trackingNumber, transactionStatus" },
+        { error: "Invalid payload schema", details: parsed.error.format() },
         { status: 400 }
       );
     }
+
+    const body = parsed.data;
 
     // Find the order by tracking number
     const order = await db.order.findFirst({
@@ -84,9 +141,8 @@ export async function POST(request: NextRequest) {
     });
 
     if (!order) {
-      // Log but still return 200 to prevent PostEx from retrying
       console.warn(
-        `PostEx webhook: No order found for tracking number ${body.trackingNumber}`
+        `[PostEx webhook] No order found for tracking number ${body.trackingNumber}`
       );
       return NextResponse.json({ received: true, matched: false });
     }
@@ -115,7 +171,7 @@ export async function POST(request: NextRequest) {
       });
 
       console.log(
-        `PostEx webhook: Order ${order.orderNumber} status updated: ${order.status} → ${mappedStatus}`
+        `[PostEx webhook] Order ${order.orderNumber} status updated: ${order.status} → ${mappedStatus}`
       );
     }
 
@@ -125,15 +181,14 @@ export async function POST(request: NextRequest) {
       orderNumber: order.orderNumber,
     });
   } catch (error) {
-    console.error("PostEx webhook error:", error);
-    // Return 200 even on error to prevent PostEx from retrying indefinitely
-    return NextResponse.json({ received: true, error: "Internal processing error" });
+    console.error("[PostEx webhook error]:", error);
+    return NextResponse.json({ received: true, error: "Internal processing error" }, { status: 500 });
   }
 }
 
 /**
  * GET /api/webhooks/postex
- * Health check endpoint — useful for verifying the webhook URL is accessible.
+ * Health check endpoint.
  */
 export async function GET() {
   return NextResponse.json({

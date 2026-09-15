@@ -1,25 +1,33 @@
 import { z } from "zod";
+import { TRPCError } from "@trpc/server";
 import { createTRPCRouter, protectedProcedure } from "@/server/trpc";
 
 const AddressSchema = z.object({
-  label: z.string().optional(),
-  fullName: z.string().min(1),
-  phone: z.string().min(10),
-  street: z.string().min(1),
-  city: z.string().min(1),
-  province: z.string().min(1),
-  postalCode: z.string().optional(),
+  label: z.string().max(50).optional(),
+  fullName: z.string().min(1).max(100),
+  phone: z.string().min(10).max(20),
+  street: z.string().min(1).max(250),
+  city: z.string().min(1).max(100),
+  province: z.string().min(1).max(100),
+  postalCode: z.string().max(20).optional(),
   country: z.string().default("Pakistan"),
   isDefault: z.boolean().default(false),
 });
 
 export const customerRouter = createTRPCRouter({
-  /** Get customer profile with loyalty info */
+  /** Get customer profile with loyalty info — excludes password hash */
   getProfile: protectedProcedure.query(async ({ ctx }) => {
     const userId = ctx.session.user.id;
     const user = await ctx.db.user.findUniqueOrThrow({
       where: { id: userId },
-      include: {
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        role: true,
+        isActive: true,
+        createdAt: true,
         customerProfile: {
           include: {
             addresses: true,
@@ -34,12 +42,14 @@ export const customerRouter = createTRPCRouter({
 
   /** Update customer profile */
   updateProfile: protectedProcedure
-    .input(z.object({
-      name: z.string().min(1).optional(),
-      phone: z.string().optional(),
-      newsletterOptIn: z.boolean().optional(),
-      dateOfBirth: z.string().optional(),
-    }))
+    .input(
+      z.object({
+        name: z.string().min(1).max(100).optional(),
+        phone: z.string().max(20).optional(),
+        newsletterOptIn: z.boolean().optional(),
+        dateOfBirth: z.string().optional(),
+      })
+    )
     .mutation(async ({ ctx, input }) => {
       const userId = ctx.session.user.id;
       const { newsletterOptIn, dateOfBirth, ...userFields } = input;
@@ -63,7 +73,7 @@ export const customerRouter = createTRPCRouter({
       return { success: true };
     }),
 
-  // ─── Addresses ─────────────────────────────────────────────────────────────
+  // ─── Addresses (IDOR-Protected) ──────────────────────────────────────────
 
   getAddresses: protectedProcedure.query(async ({ ctx }) => {
     const userId = ctx.session.user.id;
@@ -94,20 +104,41 @@ export const customerRouter = createTRPCRouter({
   updateAddress: protectedProcedure
     .input(AddressSchema.partial().extend({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
+      const userId = ctx.session.user.id;
+      const customer = await ctx.db.customer.findUniqueOrThrow({ where: { userId } });
+      const addr = await ctx.db.address.findUniqueOrThrow({ where: { id: input.id } });
+
+      if (addr.customerId !== customer.id) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Unauthorized: Address does not belong to your account.",
+        });
+      }
+
       const { id, isDefault, ...data } = input;
       if (isDefault) {
-        const addr = await ctx.db.address.findUniqueOrThrow({ where: { id } });
         await ctx.db.address.updateMany({
-          where: { customerId: addr.customerId },
+          where: { customerId: customer.id },
           data: { isDefault: false },
         });
       }
       return ctx.db.address.update({ where: { id }, data: { isDefault, ...data } });
     }),
 
-  deleteAddress: protectedProcedure.input(z.string()).mutation(({ ctx, input }) =>
-    ctx.db.address.delete({ where: { id: input } })
-  ),
+  deleteAddress: protectedProcedure.input(z.string()).mutation(async ({ ctx, input }) => {
+    const userId = ctx.session.user.id;
+    const customer = await ctx.db.customer.findUniqueOrThrow({ where: { userId } });
+    const addr = await ctx.db.address.findUniqueOrThrow({ where: { id: input } });
+
+    if (addr.customerId !== customer.id) {
+      throw new TRPCError({
+        code: "FORBIDDEN",
+        message: "Unauthorized: Address does not belong to your account.",
+      });
+    }
+
+    return ctx.db.address.delete({ where: { id: input } });
+  }),
 
   // ─── Size Preferences (FR-CRM-03) ──────────────────────────────────────────
 
@@ -119,16 +150,32 @@ export const customerRouter = createTRPCRouter({
   }),
 
   saveSizePreference: protectedProcedure
-    .input(z.object({
-      style: z.enum([
-        "SPORTS", "SNEAKERS", "SKECHERS", "FORMAL_MOCCASINS", "LOAFERS_MOZA",
-        "CHAPPAL", "SANDALS", "PESHAWARI_KHUSSA", "COURT_SHOES", "CASUAL_SHOES",
-        "BUMPS", "SCHOOL", "ACCESSORIES", "LOAFERS", "OXFORD", "MOCCASINS", "PESHAWARI"
-      ]),
-      sizeUK: z.string(),
-      width: z.enum(["STANDARD", "WIDE", "EXTRA_WIDE"]).default("STANDARD"),
-      notes: z.string().optional(),
-    }))
+    .input(
+      z.object({
+        style: z.enum([
+          "SPORTS",
+          "SNEAKERS",
+          "SKECHERS",
+          "FORMAL_MOCCASINS",
+          "LOAFERS_MOZA",
+          "CHAPPAL",
+          "SANDALS",
+          "PESHAWARI_KHUSSA",
+          "COURT_SHOES",
+          "CASUAL_SHOES",
+          "BUMPS",
+          "SCHOOL",
+          "ACCESSORIES",
+          "LOAFERS",
+          "OXFORD",
+          "MOCCASINS",
+          "PESHAWARI",
+        ]),
+        sizeUK: z.string().max(20),
+        width: z.enum(["STANDARD", "WIDE", "EXTRA_WIDE"]).default("STANDARD"),
+        notes: z.string().max(250).optional(),
+      })
+    )
     .mutation(async ({ ctx, input }) => {
       const userId = ctx.session.user.id;
       const customer = await ctx.db.customer.upsert({

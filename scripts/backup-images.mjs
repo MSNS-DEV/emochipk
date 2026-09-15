@@ -7,8 +7,12 @@ const { Client } = pg;
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const DB_URL =
-  process.env.DATABASE_URL ||
-  'postgresql://neondb_owner:npg_si9fM8gyAZCx@ep-young-scene-a1czywn2-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require';
+  process.env.DIRECT_URL ||
+  process.env.DATABASE_URL;
+
+if (!DB_URL) {
+  throw new Error("DATABASE_URL is required to run backup-images.");
+}
 
 const BACKUP_DIR = path.join(__dirname, '../backups/old-bucket-data');
 

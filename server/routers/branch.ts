@@ -6,24 +6,24 @@ import {
 } from "@/server/trpc";
 
 const BranchSchema = z.object({
-  name: z.string().min(1),
-  city: z.string().min(1),
-  address: z.string().min(1),
-  landmark: z.string().optional(),
-  phone: z.string().min(1),
-  managerName: z.string().min(1),
-  operatingHours: z.string().optional(),
+  name: z.string().min(1).max(100),
+  city: z.string().min(1).max(100),
+  address: z.string().min(1).max(250),
+  landmark: z.string().max(250).optional(),
+  phone: z.string().min(1).max(20),
+  managerName: z.string().min(1).max(100),
+  operatingHours: z.string().max(100).optional(),
   isActive: z.boolean().default(true),
 });
 
 export const branchRouter = createTRPCRouter({
-  /** List all branches (public — needed for checkout, stores page) */
+  /** List all branches (public — needed for checkout, stores page; excludes staff emails) */
   getAll: publicProcedure.query(({ ctx }) =>
     ctx.db.branch.findMany({
       where: { isActive: true },
       include: {
         branchManager: {
-          include: { user: { select: { name: true, email: true } } },
+          include: { user: { select: { name: true } } },
         },
         _count: { select: { inventory: true, orders: true } },
       },
@@ -36,7 +36,7 @@ export const branchRouter = createTRPCRouter({
       where: { id: input },
       include: {
         branchManager: {
-          include: { user: { select: { name: true, email: true } } },
+          include: { user: { select: { name: true } } },
         },
         inventory: {
           include: { variant: { include: { product: true } } },
@@ -66,7 +66,7 @@ export const branchRouter = createTRPCRouter({
       }),
     ),
 
-  /** Admin list with inventory stats */
+  /** Admin list with inventory stats and staff details */
   adminList: adminProcedure.query(async ({ ctx }) => {
     return await ctx.db.branch.findMany({
       include: {

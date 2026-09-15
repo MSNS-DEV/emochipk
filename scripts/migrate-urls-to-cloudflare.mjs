@@ -11,7 +11,11 @@ const { Client } = pg;
 const dbUrl =
   process.env.DATABASE_URL_DEV ||
   process.env.DATABASE_URL ||
-  'postgresql://neondb_owner:npg_si9fM8gyAZCx@ep-young-scene-a1czywn2-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require';
+  process.env.DIRECT_URL;
+
+if (!dbUrl) {
+  throw new Error("DATABASE_URL is not set.");
+}
 
 const targetCdnUrl = (
   process.env.NEXT_PUBLIC_IMAGE_URL ||

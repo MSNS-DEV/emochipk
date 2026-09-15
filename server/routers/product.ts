@@ -437,7 +437,7 @@ export const productRouter = createTRPCRouter({
     .input(z.object({
       productId: z.string(),
       type: z.enum(["percentage", "fixed"]),
-      amount: z.number(),
+      amount: z.number().min(-90).max(1000000),
     }))
     .mutation(async ({ ctx, input }) => {
       const product = await ctx.db.product.findUniqueOrThrow({ where: { id: input.productId } });

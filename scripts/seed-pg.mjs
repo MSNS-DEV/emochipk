@@ -12,8 +12,11 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const DB_URL =
   process.env.DIRECT_URL ||
-  process.env.DATABASE_URL ||
-  'postgresql://neondb_owner:npg_si9fM8gyAZCx@ep-young-scene-a1czywn2-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require';
+  process.env.DATABASE_URL;
+
+if (!DB_URL) {
+  throw new Error("DATABASE_URL or DIRECT_URL is required to run seed-pg.");
+}
 
 function genId(prefix = 'c') {
   return `${prefix}${randomUUID().replace(/-/g, '').substring(0, 24)}`;

@@ -218,11 +218,24 @@ export const courierRouter = createTRPCRouter({
         where: { id: input.orderId },
         select: {
           id: true,
+          branchId: true,
           courierService: true,
           trackingNumber: true,
           status: true,
         },
       });
+
+      if (ctx.session.user.role === "BRANCH_MANAGER") {
+        const manager = await ctx.db.branchManager.findUnique({
+          where: { userId: ctx.session.user.id },
+        });
+        if (!manager || manager.branchId !== order.branchId) {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: "Branch managers can only sync tracking for orders within their branch.",
+          });
+        }
+      }
 
       if (!order.courierService || !order.trackingNumber) {
         throw new TRPCError({
@@ -303,6 +316,7 @@ export const courierRouter = createTRPCRouter({
         select: {
           id: true,
           userId: true,
+          branchId: true,
           orderNumber: true,
           status: true,
           courierService: true,
@@ -319,7 +333,17 @@ export const courierRouter = createTRPCRouter({
         ctx.session.user.role === "CUSTOMER" &&
         order.userId !== ctx.session.user.id
       ) {
-        throw new TRPCError({ code: "FORBIDDEN" });
+        throw new TRPCError({ code: "FORBIDDEN", message: "Access denied." });
+      }
+
+      // Branch managers can only view orders for their assigned branch
+      if (ctx.session.user.role === "BRANCH_MANAGER") {
+        const manager = await ctx.db.branchManager.findUnique({
+          where: { userId: ctx.session.user.id },
+        });
+        if (!manager || manager.branchId !== order.branchId) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Access denied: Order belongs to another branch." });
+        }
       }
 
       const events = await ctx.db.trackingEvent.findMany({

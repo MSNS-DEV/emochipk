@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { TRPCError } from "@trpc/server";
 import { createTRPCRouter, protectedProcedure } from "@/server/trpc";
 
 export const wishlistRouter = createTRPCRouter({
@@ -20,6 +21,13 @@ export const wishlistRouter = createTRPCRouter({
 
   add: protectedProcedure.input(z.string()).mutation(async ({ ctx, input: productId }) => {
     const userId = ctx.session.user.id;
+    const product = await ctx.db.product.findUnique({
+      where: { id: productId, isActive: true },
+    });
+    if (!product) {
+      throw new TRPCError({ code: "NOT_FOUND", message: "Product not found or inactive." });
+    }
+
     const existing = await ctx.db.wishlistItem.findUnique({
       where: { userId_productId: { userId, productId } },
     });
@@ -35,6 +43,17 @@ export const wishlistRouter = createTRPCRouter({
     .input(z.object({ productId: z.string(), variantId: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const userId = ctx.session.user.id;
+
+      const variant = await ctx.db.productVariant.findFirst({
+        where: { id: input.variantId, productId: input.productId, isActive: true },
+      });
+      if (!variant) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Product variant not found or does not belong to this product.",
+        });
+      }
+
       await ctx.db.cartItem.upsert({
         where: { userId_variantId: { userId, variantId: input.variantId } },
         create: { userId, variantId: input.variantId, quantity: 1 },

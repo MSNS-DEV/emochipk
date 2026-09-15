@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { TRPCError } from "@trpc/server";
 import { createTRPCRouter, publicProcedure, protectedProcedure, adminProcedure } from "@/server/trpc";
 
 export const reviewRouter = createTRPCRouter({
@@ -12,32 +13,72 @@ export const reviewRouter = createTRPCRouter({
     })
   ),
 
-  /** Submit review — must have purchased (FR-CUS-05) */
+  /** Submit review — must have verified purchased order (FR-CUS-05) */
   submit: protectedProcedure
-    .input(z.object({
-      productId: z.string(),
-      orderId: z.string(),
-      rating: z.number().int().min(1).max(5),
-      title: z.string().optional(),
-      body: z.string().optional(),
-    }))
+    .input(
+      z.object({
+        productId: z.string(),
+        orderId: z.string(),
+        rating: z.number().int().min(1).max(5),
+        title: z.string().max(100).optional(),
+        body: z.string().max(2000).optional(),
+      })
+    )
     .mutation(async ({ ctx, input }) => {
       const userId = ctx.session.user.id;
-      const customer = await ctx.db.customer.findUniqueOrThrow({ where: { userId } });
-      // Verify purchase
-      const orderItem = await ctx.db.orderItem.findFirst({
-        where: { orderId: input.orderId, variant: { productId: input.productId } },
+      const customer = await ctx.db.customer.upsert({
+        where: { userId },
+        create: { userId },
+        update: {},
       });
-      if (!orderItem) throw new Error("You can only review products you have purchased.");
+
+      // Verify purchase ownership and delivery
+      const order = await ctx.db.order.findUnique({
+        where: { id: input.orderId },
+        include: { items: { include: { variant: true } } },
+      });
+
+      if (!order || order.userId !== userId) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Unauthorized: You can only review products purchased on your own account.",
+        });
+      }
+
+      if (order.status !== "DELIVERED") {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Reviews can only be submitted for delivered orders.",
+        });
+      }
+
+      const orderItem = order.items.find((item) => item.variant.productId === input.productId);
+      if (!orderItem) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "You can only review products that were part of this order.",
+        });
+      }
+
+      const existingReview = await ctx.db.review.findFirst({
+        where: { orderId: input.orderId, productId: input.productId },
+      });
+      if (existingReview) {
+        throw new TRPCError({
+          code: "CONFLICT",
+          message: "You have already submitted a review for this product on this order.",
+        });
+      }
+
       return ctx.db.review.create({
         data: {
           productId: input.productId,
           customerId: customer.id,
           orderId: input.orderId,
           rating: input.rating,
-          title: input.title,
-          body: input.body,
-          isApproved: false, // pending moderation
+          title: input.title?.trim(),
+          body: input.body?.trim(),
+          isApproved: false, // pending admin moderation
         },
       });
     }),

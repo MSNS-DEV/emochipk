@@ -7,12 +7,16 @@
 import pg from 'pg';
 const { Client } = pg;
 
-// ─── Connection strings ───────────────────────────────────────────────────────
 const SOURCE_URL =
-  'postgresql://neondb_owner:npg_si9fM8gyAZCx@ep-young-scene-a1czywn2-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require';
+  process.env.SOURCE_DATABASE_URL ||
+  process.env.DATABASE_URL;
 
 const DEST_URL =
-  'postgresql://postgres:kPvafiLoQgkeHXhaCVeAamZEwziaQEEx@switchback.proxy.rlwy.net:17158/railway';
+  process.env.DEST_DATABASE_URL;
+
+if (!SOURCE_URL || !DEST_URL) {
+  throw new Error("SOURCE_DATABASE_URL (or DATABASE_URL) and DEST_DATABASE_URL must be defined in environment.");
+}
 
 // ─── Table order respects FK dependencies ────────────────────────────────────
 // Parents before children. Leaf/junction tables at the end.

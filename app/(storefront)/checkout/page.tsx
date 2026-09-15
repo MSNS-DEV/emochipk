@@ -164,6 +164,7 @@ export default function CheckoutPage() {
         country: 'Pakistan',
       },
       notes: formData.notes || undefined,
+      couponCode: cart.couponCode || undefined,
       discountAmount: cart.discountAmount,
       shippingCost: cart.shippingAmount,
       items,

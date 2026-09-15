@@ -11,9 +11,9 @@ import {
 
 export const googleMerchantRouter = createTRPCRouter({
   /**
-   * Returns current Google Merchant Center integration status & stats
+   * Returns current Google Merchant Center integration status & stats (Admin only)
    */
-  getStatus: publicProcedure.query(async () => {
+  getStatus: adminProcedure.query(async () => {
     const config = getGMCConfig();
     const isConfigured = isGMCConfigured(config);
 
@@ -30,7 +30,7 @@ export const googleMerchantRouter = createTRPCRouter({
     return {
       isConfigured,
       merchantId: config.merchantId ? `${config.merchantId.slice(0, 3)}***${config.merchantId.slice(-3)}` : null,
-      clientEmail: config.clientEmail ? config.clientEmail : null,
+      clientEmail: config.clientEmail ? `${config.clientEmail.slice(0, 4)}***@${config.clientEmail.split("@")[1] || ""}` : null,
       targetCountry: config.targetCountry,
       currency: config.currency,
       feedUrl: `${config.appUrl}/api/gmc/feed`,

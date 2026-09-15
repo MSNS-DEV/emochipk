@@ -97,9 +97,12 @@ export async function sendMetaEvents(events: MetaEventData[]): Promise<void> {
       test_event_code: process.env.META_CAPI_TEST_CODE, // only used during testing
     };
 
-    const res = await fetch(`${API_URL}?access_token=${API_TOKEN}`, {
+    const res = await fetch(API_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${API_TOKEN}`,
+      },
       body: JSON.stringify(payload),
     });
 

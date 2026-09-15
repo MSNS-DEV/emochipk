@@ -18,13 +18,13 @@ export async function GET() {
         "Cache-Control": "s-maxage=3600, stale-while-revalidate=86400",
       },
     });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("[GMC Feed Route] Error generating RSS feed:", err);
     return new NextResponse(
-      `<?xml version="1.0" encoding="UTF-8"?><error>${err.message || "Failed to generate feed"}</error>`,
+      '<?xml version="1.0" encoding="UTF-8"?><error>Failed to generate Google Shopping feed</error>',
       {
         status: 500,
-        headers: { "Content-Type": "application/xml" },
+        headers: { "Content-Type": "application/xml; charset=utf-8" },
       }
     );
   }

@@ -1,44 +1,58 @@
 import { z } from "zod";
 import bcrypt from "bcryptjs";
+import { TRPCError } from "@trpc/server";
 import { createTRPCRouter, publicProcedure, protectedProcedure, adminProcedure } from "@/server/trpc";
 
 export const userRouter = createTRPCRouter({
   /** Public registration — creates User + Customer profile (FR-CRM-01) */
   register: publicProcedure
-    .input(z.object({
-      name: z.string().min(1),
-      email: z.string().email(),
-      password: z.string().min(8),
-      phone: z.string().optional(),
-    }))
+    .input(
+      z.object({
+        name: z.string().min(1).max(100),
+        email: z.string().email().max(255),
+        password: z.string().min(8).max(100),
+        phone: z.string().max(20).optional(),
+      })
+    )
     .mutation(async ({ ctx, input }) => {
-      const existing = await ctx.db.user.findUnique({ where: { email: input.email.toLowerCase() } });
-      if (existing) throw new Error("An account with this email already exists.");
+      const sanitizedEmail = input.email.trim().toLowerCase();
+      const existing = await ctx.db.user.findUnique({ where: { email: sanitizedEmail } });
+      if (existing) {
+        throw new TRPCError({
+          code: "CONFLICT",
+          message: "An account with this email address already exists.",
+        });
+      }
       const hashed = await bcrypt.hash(input.password, 12);
       const user = await ctx.db.user.create({
         data: {
-          email: input.email.toLowerCase(),
+          email: sanitizedEmail,
           password: hashed,
-          name: input.name,
-          phone: input.phone,
+          name: input.name.trim(),
+          phone: input.phone?.trim(),
           role: "CUSTOMER",
         },
+        select: { id: true, email: true, name: true, role: true },
       });
       // Auto-create customer profile
       await ctx.db.customer.create({ data: { userId: user.id } });
-      return { id: user.id, email: user.email, name: user.name };
+      return user;
     }),
 
   /** Change own password (protected) */
   changePassword: protectedProcedure
-    .input(z.object({
-      currentPassword: z.string(),
-      newPassword: z.string().min(8),
-    }))
+    .input(
+      z.object({
+        currentPassword: z.string(),
+        newPassword: z.string().min(8).max(100),
+      })
+    )
     .mutation(async ({ ctx, input }) => {
       const user = await ctx.db.user.findUniqueOrThrow({ where: { id: ctx.session.user.id } });
       const valid = await bcrypt.compare(input.currentPassword, user.password);
-      if (!valid) throw new Error("Current password is incorrect.");
+      if (!valid) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Current password is incorrect." });
+      }
       const hashed = await bcrypt.hash(input.newPassword, 12);
       await ctx.db.user.update({ where: { id: user.id }, data: { password: hashed } });
       return { success: true };
@@ -46,12 +60,14 @@ export const userRouter = createTRPCRouter({
 
   /** Admin — paginated user list */
   getAll: adminProcedure
-    .input(z.object({
-      page: z.number().default(1),
-      pageSize: z.number().default(20),
-      role: z.enum(["ADMIN", "BRANCH_MANAGER", "WAREHOUSE_STAFF", "CUSTOMER"]).optional(),
-      search: z.string().optional(),
-    }))
+    .input(
+      z.object({
+        page: z.number().default(1),
+        pageSize: z.number().default(20),
+        role: z.enum(["ADMIN", "BRANCH_MANAGER", "WAREHOUSE_STAFF", "CUSTOMER"]).optional(),
+        search: z.string().optional(),
+      })
+    )
     .query(async ({ ctx, input }) => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const where: Record<string, any> = {
@@ -78,34 +94,71 @@ export const userRouter = createTRPCRouter({
 
   /** Admin — create staff user */
   create: adminProcedure
-    .input(z.object({
-      name: z.string().min(1),
-      email: z.string().email(),
-      password: z.string().min(8),
-      phone: z.string().optional(),
-      role: z.enum(["ADMIN", "BRANCH_MANAGER", "WAREHOUSE_STAFF"]),
-    }))
+    .input(
+      z.object({
+        name: z.string().min(1).max(100),
+        email: z.string().email().max(255),
+        password: z.string().min(8).max(100),
+        phone: z.string().max(20).optional(),
+        role: z.enum(["ADMIN", "BRANCH_MANAGER", "WAREHOUSE_STAFF"]),
+      })
+    )
     .mutation(async ({ ctx, input }) => {
-      const existing = await ctx.db.user.findUnique({ where: { email: input.email.toLowerCase() } });
-      if (existing) throw new Error("Email already in use.");
+      const sanitizedEmail = input.email.trim().toLowerCase();
+      const existing = await ctx.db.user.findUnique({ where: { email: sanitizedEmail } });
+      if (existing) {
+        throw new TRPCError({ code: "CONFLICT", message: "Email is already in use." });
+      }
       const hashed = await bcrypt.hash(input.password, 12);
       return ctx.db.user.create({
-        data: { ...input, email: input.email.toLowerCase(), password: hashed },
-        select: { id: true, name: true, email: true, role: true },
+        data: { ...input, email: sanitizedEmail, password: hashed },
+        select: { id: true, name: true, email: true, role: true, createdAt: true },
       });
     }),
 
-  /** Admin — update user role / status */
+  /** Admin — update user role / status (excludes password hash, prevents self-lockout) */
   update: adminProcedure
-    .input(z.object({
-      id: z.string(),
-      role: z.enum(["ADMIN", "BRANCH_MANAGER", "WAREHOUSE_STAFF", "CUSTOMER"]).optional(),
-      isActive: z.boolean().optional(),
-      name: z.string().optional(),
-      phone: z.string().optional(),
-    }))
-    .mutation(({ ctx, input }) => {
+    .input(
+      z.object({
+        id: z.string(),
+        role: z.enum(["ADMIN", "BRANCH_MANAGER", "WAREHOUSE_STAFF", "CUSTOMER"]).optional(),
+        isActive: z.boolean().optional(),
+        name: z.string().max(100).optional(),
+        phone: z.string().max(20).optional(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
       const { id, ...data } = input;
-      return ctx.db.user.update({ where: { id }, data });
+
+      // Defend against self-lockout / accidental self-demotion
+      if (id === ctx.session.user.id) {
+        if (data.isActive === false) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Administrators cannot deactivate their own account.",
+          });
+        }
+        if (data.role && data.role !== "ADMIN") {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Administrators cannot remove their own ADMIN role.",
+          });
+        }
+      }
+
+      return ctx.db.user.update({
+        where: { id },
+        data,
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          phone: true,
+          role: true,
+          isActive: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      });
     }),
 });
