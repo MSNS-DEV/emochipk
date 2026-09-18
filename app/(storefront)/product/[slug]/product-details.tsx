@@ -3,6 +3,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import { Heart, Share2, Truck, Shield, RefreshCw, Minus, Plus, Star, Check, Package } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -30,6 +31,8 @@ import { useMetaPixel } from '@/hooks/use-meta-pixel';
 
 interface ProductDetailsProps {
   product: CatalogProduct;
+  initialVariantSku?: string;
+  initialColor?: string;
 }
 
 /** Strip internal disambiguation suffixes (K = kids, Y = youth) for display */
@@ -131,17 +134,24 @@ function isEuSize(size: string): boolean {
   return ALL_EU_SIZES.has(size);
 }
 
-import { useSearchParams } from 'next/navigation';
-
-export function ProductDetails({ product }: ProductDetailsProps) {
+export function ProductDetails({ product, initialVariantSku, initialColor }: ProductDetailsProps) {
   const searchParams = useSearchParams();
-  const colorParam = searchParams?.get('color');
+  const colorParam = initialColor || searchParams?.get('color');
+  const variantParam = initialVariantSku || searchParams?.get('variant');
+
+  // Match initial variant if specified via ?variant=SKU in URL (e.g. from Google Merchant Center or marketing)
+  const initialVariant = useMemo(() => {
+    if (!variantParam || !product.variants) return null;
+    const target = variantParam.toLowerCase().trim();
+    return product.variants.find((v) => v.sku && v.sku.toLowerCase() === target) ?? null;
+  }, [variantParam, product.variants]);
 
   const { addToCart } = useCart();
   const { trackViewContent, trackAddToCart } = useMetaPixel();
 
   const [selectedImage, setSelectedImage] = useState(0);
   const [selectedColor, setSelectedColor] = useState<string>(() => {
+    if (initialVariant) return initialVariant.color;
     const colors = getProductColors(product);
     if (colorParam) {
       const match = colors.find((c) => c.name.toLowerCase() === colorParam.toLowerCase());
@@ -149,7 +159,10 @@ export function ProductDetails({ product }: ProductDetailsProps) {
     }
     return colors[0]?.name ?? '';
   });
-  const [selectedSize, setSelectedSize] = useState<string | null>(null);
+  const [selectedSize, setSelectedSize] = useState<string | null>(() => {
+    if (initialVariant) return initialVariant.sizeUK;
+    return null;
+  });
   const [quantity, setQuantity] = useState(1);
 
   const colors      = useMemo(() => getProductColors(product), [product]);
@@ -317,10 +330,14 @@ export function ProductDetails({ product }: ProductDetailsProps) {
         {/* ─── PRODUCT INFO ─── */}
         <div className="lg:sticky lg:top-24 lg:self-start space-y-4 sm:space-y-6">
 
-          {/* Article Number */}
-          <div className="flex items-center gap-2">
-            <span className="font-mono text-xs bg-muted px-2 py-1 rounded text-muted-foreground">
-              {product.articleNumber}
+          {/* Article Number & SKU */}
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="font-mono text-xs bg-muted px-2 py-1 rounded text-muted-foreground font-medium">
+              Article: {product.articleNumber}
+            </span>
+            <span className="text-xs text-muted-foreground">·</span>
+            <span className="font-mono text-xs bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/30 px-2 py-0.5 rounded font-semibold">
+              SKU: {selectedVariant?.sku ?? product.variants?.[0]?.sku ?? product.articleNumber}
             </span>
             <span className="text-xs text-muted-foreground">·</span>
             <span className="text-xs text-muted-foreground">{styleLabel[product.style] ?? product.style}</span>

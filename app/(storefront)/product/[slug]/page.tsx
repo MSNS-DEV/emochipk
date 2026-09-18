@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import { notFound, permanentRedirect } from 'next/navigation';
 import Link from 'next/link';
 import { ChevronRight } from 'lucide-react';
@@ -12,6 +13,7 @@ import { JsonLd } from '@/components/seo/JsonLd';
 
 interface ProductPageProps {
   params: Promise<{ slug: string }>;
+  searchParams?: Promise<{ [key: string]: string | string[] | undefined }>;
 }
 
 // Server-side caller for RSC data fetching (no HTTP overhead)
@@ -26,14 +28,15 @@ export async function generateMetadata({ params }: ProductPageProps): Promise<Me
     const product = await caller.product.getBySlug(decodedSlug);
     if (!product) {
       return {
-        title: 'Product Not Found | Executive Mochi',
+        title: 'Product Not Found',
         robots: { index: false, follow: false },
       };
     }
 
     const styleLabel = styleCategories.find((s) => s.id === product.style)?.label ?? product.style;
     const genderLabel = genderCategories.find((g) => g.id === product.category)?.label ?? product.category;
-    const title = `${product.name} | Handcrafted Pure Leather ${styleLabel}`;
+    // Bare title without brand suffix; root layout template "%s | Executive Mochi" completes it
+    const title = `${product.name} - Handcrafted Pure Leather ${styleLabel}`;
     const description = `Buy ${product.name} (${product.articleNumber || ''}) online in Pakistan. 100% genuine handcrafted leather, premium ergonomic comfort & durable finish. Free shipping & COD nationwide.`;
     const canonicalUrl = `https://executivemochi.pk/product/${product.slug}`;
     const primaryImage = product.images?.[0]?.url;
@@ -80,7 +83,7 @@ export async function generateMetadata({ params }: ProductPageProps): Promise<Me
   } catch (err) {
     console.error(`[generateMetadata] Error fetching product "${decodedSlug}":`, err);
     return {
-      title: 'Product Not Found | Executive Mochi',
+      title: 'Product Not Found',
       robots: { index: false, follow: false },
     };
   }
@@ -95,56 +98,71 @@ function normalizeSlug(raw: string): string {
     .replace(/^-+|-+$/g, '');   // trim leading/trailing hyphens
 }
 
-export default async function ProductPage({ params }: ProductPageProps) {
+export default async function ProductPage({ params, searchParams }: ProductPageProps) {
   const { slug } = await params;
+  const rawSearchParams = searchParams ? await searchParams : {};
   const decodedSlug = decodeURIComponent(slug || '').trim();
 
-  // ── Tier 1: exact lookup with error handling ──────────────────────────
-  let product = null;
+  // ── Tier 1: Look up product via TRPC caller ───────────────────────────
+  let product: any = null;
   try {
     product = await caller.product.getBySlug(decodedSlug);
   } catch (err) {
     console.error(`[ProductPage] Error fetching slug "${decodedSlug}":`, err);
   }
 
+  // ── Tier 2: Resilient database fallback lookup across identifiers ─────
   if (!product) {
-    // ── Tier 2: slug is malformed (spaces, wrong case, etc.) ─────────────
     const cleanSlug = normalizeSlug(decodedSlug);
-    if (cleanSlug && cleanSlug !== decodedSlug) {
-      let cleanProduct = null;
-      try {
-        cleanProduct = await caller.product.getBySlug(cleanSlug);
-      } catch (_err) {
-        // silent catch
-      }
-      if (cleanProduct) {
-        permanentRedirect(`/product/${cleanSlug}`);
-      }
-    }
-
-    // ── Tier 3: check if product exists in DB (e.g. without images) ──────
     try {
-      const bare = await db.product.findFirst({
+      product = await db.product.findFirst({
         where: {
           OR: [
             { slug: decodedSlug },
-            ...(cleanSlug && cleanSlug !== decodedSlug ? [{ slug: cleanSlug }] : []),
+            { slug: { equals: decodedSlug, mode: 'insensitive' as const } },
+            ...(cleanSlug && cleanSlug !== decodedSlug
+              ? [{ slug: cleanSlug }, { slug: { equals: cleanSlug, mode: 'insensitive' as const } }]
+              : []),
+            { articleNumber: { equals: decodedSlug, mode: 'insensitive' as const } },
+            { variants: { some: { sku: { equals: decodedSlug, mode: 'insensitive' as const } } } },
           ],
           isActive: true,
         },
-        select: { id: true, category: true, slug: true, images: { select: { id: true } } },
+        include: {
+          images: { orderBy: [{ isPrimary: 'desc' }, { sortOrder: 'asc' }] },
+          variants: {
+            where: { isActive: true },
+            include: { inventory: { include: { branch: true } } },
+          },
+          reviews: {
+            where: { isApproved: true },
+            orderBy: { createdAt: 'desc' },
+            take: 20,
+            include: { customer: { include: { user: { select: { name: true } } } } },
+          },
+          _count: { select: { reviews: { where: { isApproved: true } } } },
+        },
       });
-
-      if (bare && bare.images.length === 0) {
-        // Product has no storefront images yet — redirect to its category shop page
-        permanentRedirect(`/shop?category=${bare.category}`);
-      }
     } catch (err) {
-      console.error(`[ProductPage] Error checking bare product:`, err);
+      console.error(`[ProductPage] Error in fallback product query:`, err);
     }
+  }
 
-    // ── Tier 4: truly not found ───────────────────────────────────────────
+  // ── Tier 3: If product does not exist, return genuine 404 ─────────────
+  if (!product) {
     notFound();
+  }
+
+  // ── Tier 4: Canonical Redirect for non-canonical URLs / SKUs / articles ─
+  if (product.slug !== decodedSlug) {
+    const matchedVariant = product.variants?.find(
+      (v: any) => v.sku.toLowerCase() === decodedSlug.toLowerCase()
+    );
+    if (matchedVariant) {
+      permanentRedirect(`/product/${product.slug}?variant=${encodeURIComponent(matchedVariant.sku)}`);
+    } else {
+      permanentRedirect(`/product/${product.slug}`);
+    }
   }
 
   const styleLabel = styleCategories.find((s) => s.id === product.style)?.label ?? product.style;
@@ -187,6 +205,119 @@ export default async function ProductPage({ params }: ProductPageProps) {
       ? absoluteImages
       : ['https://executivemochi.pk/images/hero-shoes.jpg'];
 
+  const primarySku = product.variants?.[0]?.sku || product.articleNumber || product.id;
+  const primaryMpn = product.articleNumber || primarySku;
+
+  const structuredOffers = (product.variants && product.variants.length > 0)
+    ? product.variants.map((v: any) => {
+        const variantStock = (v.inventory || []).reduce(
+          (sum: number, inv: any) => sum + (inv.quantity - inv.reserved),
+          0
+        );
+        const variantPrice = Number(product.salePrice ?? product.basePrice) + Number(v.priceDelta ?? 0);
+        return {
+          '@type': 'Offer',
+          sku: v.sku,
+          mpn: v.sku,
+          url: `https://executivemochi.pk/product/${product.slug}?variant=${encodeURIComponent(v.sku)}`,
+          priceCurrency: 'PKR',
+          price: variantPrice,
+          availability: variantStock > 0 ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
+          itemCondition: 'https://schema.org/NewCondition',
+          validFrom: new Date().toISOString().split('T')[0],
+          priceValidUntil: new Date(new Date().setFullYear(new Date().getFullYear() + 1))
+            .toISOString()
+            .split('T')[0],
+          hasMerchantReturnPolicy: {
+            '@type': 'MerchantReturnPolicy',
+            applicableCountry: 'PK',
+            returnPolicyCategory: 'https://schema.org/MerchantReturnFiniteReturnWindow',
+            merchantReturnDays: 7,
+            returnMethod: 'https://schema.org/ReturnByMail',
+            returnFees: 'https://schema.org/FreeReturn',
+          },
+          shippingDetails: {
+            '@type': 'OfferShippingDetails',
+            shippingRate: {
+              '@type': 'MonetaryAmount',
+              value: variantPrice >= 5000 ? '0' : '250',
+              currency: 'PKR',
+            },
+            shippingDestination: {
+              '@type': 'DefinedRegion',
+              addressCountry: 'PK',
+            },
+            deliveryTime: {
+              '@type': 'ShippingDeliveryTime',
+              handlingTime: {
+                '@type': 'QuantitativeValue',
+                minValue: 1,
+                maxValue: 2,
+                unitCode: 'DAY',
+              },
+              transitTime: {
+                '@type': 'QuantitativeValue',
+                minValue: 2,
+                maxValue: 4,
+                unitCode: 'DAY',
+              },
+            },
+          },
+        };
+      })
+    : [
+        {
+          '@type': 'Offer',
+          sku: primarySku,
+          url: `https://executivemochi.pk/product/${product.slug}`,
+          priceCurrency: 'PKR',
+          price: Number(product.salePrice ?? product.basePrice),
+          availability: product.isActive
+            ? 'https://schema.org/InStock'
+            : 'https://schema.org/OutOfStock',
+          itemCondition: 'https://schema.org/NewCondition',
+          validFrom: new Date().toISOString().split('T')[0],
+          priceValidUntil: new Date(new Date().setFullYear(new Date().getFullYear() + 1))
+            .toISOString()
+            .split('T')[0],
+          hasMerchantReturnPolicy: {
+            '@type': 'MerchantReturnPolicy',
+            applicableCountry: 'PK',
+            returnPolicyCategory: 'https://schema.org/MerchantReturnFiniteReturnWindow',
+            merchantReturnDays: 7,
+            returnMethod: 'https://schema.org/ReturnByMail',
+            returnFees: 'https://schema.org/FreeReturn',
+          },
+          shippingDetails: {
+            '@type': 'OfferShippingDetails',
+            shippingRate: {
+              '@type': 'MonetaryAmount',
+              value: Number(product.salePrice ?? product.basePrice) >= 5000 ? '0' : '250',
+              currency: 'PKR',
+            },
+            shippingDestination: {
+              '@type': 'DefinedRegion',
+              addressCountry: 'PK',
+            },
+            deliveryTime: {
+              '@type': 'ShippingDeliveryTime',
+              handlingTime: {
+                '@type': 'QuantitativeValue',
+                minValue: 1,
+                maxValue: 2,
+                unitCode: 'DAY',
+              },
+              transitTime: {
+                '@type': 'QuantitativeValue',
+                minValue: 2,
+                maxValue: 4,
+                unitCode: 'DAY',
+              },
+            },
+          },
+        },
+      ];
+
   return (
     <div className="min-h-screen">
       {/* Structured Data (JSON-LD) */}
@@ -202,8 +333,8 @@ export default async function ProductPage({ params }: ProductPageProps) {
               description:
                 product.description ||
                 `Handcrafted genuine leather ${product.name} from Executive Mochi. Premium artisan footwear made in Pakistan with nationwide Cash on Delivery.`,
-              sku: (product.articleNumber ?? product.id).replace(/^\d+-/, ''),
-              mpn: (product.articleNumber ?? product.id).replace(/^\d+-/, ''),
+              sku: primarySku,
+              mpn: primaryMpn,
               brand: {
                 '@type': 'Brand',
                 name: 'Executive Mochi',
@@ -238,55 +369,27 @@ export default async function ProductPage({ params }: ProductPageProps) {
                     })),
                   }
                 : {}),
-              offers: {
-                '@type': 'Offer',
-                url: `https://executivemochi.pk/product/${product.slug}`,
-                priceCurrency: 'PKR',
-                price: Number(product.salePrice ?? product.basePrice),
-                availability: product.isActive
-                  ? 'https://schema.org/InStock'
-                  : 'https://schema.org/OutOfStock',
-                itemCondition: 'https://schema.org/NewCondition',
-                validFrom: new Date().toISOString().split('T')[0],
-                priceValidUntil: new Date(new Date().setFullYear(new Date().getFullYear() + 1))
-                  .toISOString()
-                  .split('T')[0],
-                hasMerchantReturnPolicy: {
-                  '@type': 'MerchantReturnPolicy',
-                  applicableCountry: 'PK',
-                  returnPolicyCategory: 'https://schema.org/MerchantReturnFiniteReturnWindow',
-                  merchantReturnDays: 7,
-                  returnMethod: 'https://schema.org/ReturnByMail',
-                  returnFees: 'https://schema.org/FreeReturn',
+              offers: structuredOffers,
+              hasVariant: (product.variants || []).map((v: any) => ({
+                '@type': 'Product',
+                name: `${product.name} - ${v.color} (UK ${v.sizeUK})`,
+                sku: v.sku,
+                mpn: v.sku,
+                image: productImages,
+                color: v.color,
+                size: `UK ${v.sizeUK}`,
+                offers: {
+                  '@type': 'Offer',
+                  sku: v.sku,
+                  url: `https://executivemochi.pk/product/${product.slug}?variant=${encodeURIComponent(v.sku)}`,
+                  priceCurrency: 'PKR',
+                  price: Number(product.salePrice ?? product.basePrice) + Number(v.priceDelta ?? 0),
+                  availability: ((v.inventory || []).reduce((sum: number, inv: any) => sum + (inv.quantity - inv.reserved), 0) > 0)
+                    ? 'https://schema.org/InStock'
+                    : 'https://schema.org/OutOfStock',
+                  itemCondition: 'https://schema.org/NewCondition',
                 },
-                shippingDetails: {
-                  '@type': 'OfferShippingDetails',
-                  shippingRate: {
-                    '@type': 'MonetaryAmount',
-                    value: Number(product.salePrice ?? product.basePrice) >= 5000 ? '0' : '250',
-                    currency: 'PKR',
-                  },
-                  shippingDestination: {
-                    '@type': 'DefinedRegion',
-                    addressCountry: 'PK',
-                  },
-                  deliveryTime: {
-                    '@type': 'ShippingDeliveryTime',
-                    handlingTime: {
-                      '@type': 'QuantitativeValue',
-                      minValue: 1,
-                      maxValue: 2,
-                      unitCode: 'DAY',
-                    },
-                    transitTime: {
-                      '@type': 'QuantitativeValue',
-                      minValue: 2,
-                      maxValue: 4,
-                      unitCode: 'DAY',
-                    },
-                  },
-                },
-              },
+              })),
             },
             {
               '@type': 'BreadcrumbList',
@@ -355,7 +458,13 @@ export default async function ProductPage({ params }: ProductPageProps) {
       </div>
 
       {/* Product Details */}
-      <ProductDetails product={product as never} />
+      <Suspense fallback={<div className="container mx-auto px-4 py-8 animate-pulse"><div className="h-96 bg-muted/40 rounded-2xl" /></div>}>
+        <ProductDetails
+          product={product as never}
+          initialVariantSku={typeof rawSearchParams?.variant === 'string' ? rawSearchParams.variant : undefined}
+          initialColor={typeof rawSearchParams?.color === 'string' ? rawSearchParams.color : undefined}
+        />
+      </Suspense>
 
       {/* Related Products */}
       {relatedProducts.length > 0 && (

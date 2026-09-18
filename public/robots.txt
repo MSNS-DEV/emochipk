@@ -20,6 +20,7 @@ Allow: /careers
 Allow: /llms.txt
 Allow: /llms-full.txt
 Allow: /api/images/
+Allow: /cdn-cgi/image/
 Allow: /api/gmc/feed
 Disallow: /admin
 Disallow: /admin/
@@ -60,6 +61,7 @@ Allow: /llms.txt
 Allow: /llms-full.txt
 Allow: /api/gmc/feed
 Allow: /api/images/
+Allow: /cdn-cgi/image/
 Disallow: /admin
 Disallow: /admin/
 Disallow: /branch
@@ -96,6 +98,7 @@ Allow: /llms.txt
 Allow: /llms-full.txt
 Allow: /api/gmc/feed
 Allow: /api/images/
+Allow: /cdn-cgi/image/
 Disallow: /admin
 Disallow: /admin/
 Disallow: /branch
@@ -145,6 +148,7 @@ Disallow: /api/
 User-agent: Googlebot-Image
 Allow: /
 Allow: /api/images/
+Allow: /cdn-cgi/image/
 Allow: /images/
 Allow: /*.jpg
 Allow: /*.jpeg

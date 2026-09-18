@@ -1,8 +1,18 @@
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Search, Home, ShoppingBag, ArrowRight, MessageCircle } from 'lucide-react';
 import { SiteHeader } from '@/components/site-header';
 import { SiteFooter } from '@/components/site-footer';
 import { WhatsAppButton } from '@/components/whatsapp-button';
+
+export const metadata: Metadata = {
+  title: 'Page Not Found',
+  description: 'The requested page or handcrafted leather shoe model could not be found.',
+  robots: {
+    index: false,
+    follow: true,
+  },
+};
 
 export default function NotFound() {
   const popularCategories = [

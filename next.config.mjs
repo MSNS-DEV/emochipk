@@ -2,6 +2,8 @@
 const nextConfig = {
   trailingSlash: false,
   images: {
+    loader: 'custom',
+    loaderFile: './lib/cloudflare-image-loader.ts',
     formats: ['image/avif', 'image/webp'],
     minimumCacheTTL: 31536000,
     deviceSizes: [640, 750, 828, 1080, 1200, 1920],
@@ -32,6 +34,11 @@ const nextConfig = {
   async redirects() {
     return [
       // 1. Catalog roots
+      {
+        source: '/catalog',
+        destination: '/shop',
+        permanent: true,
+      },
       {
         source: '/products',
         destination: '/shop',
@@ -78,6 +85,16 @@ const nextConfig = {
         destination: '/product/:slug+',
         permanent: true,
       },
+      {
+        source: '/sku/:sku+',
+        destination: '/product/:sku+',
+        permanent: true,
+      },
+      {
+        source: '/article/:article+',
+        destination: '/product/:article+',
+        permanent: true,
+      },
       // 3. Category & collection paths
       {
         source: '/collections/:path+',
@@ -93,6 +110,22 @@ const nextConfig = {
   },
   async headers() {
     return [
+      {
+        source: '/cdn-cgi/image/:path*',
+        headers: [
+          { key: 'Cache-Control', value: 'public, max-age=31536000, s-maxage=31536000, immutable' },
+          { key: 'Cloudflare-CDN-Cache-Control', value: 'public, max-age=31536000, immutable' },
+          { key: 'CDN-Cache-Control', value: 'public, max-age=31536000, immutable' },
+        ],
+      },
+      {
+        source: '/api/images/:path*',
+        headers: [
+          { key: 'Cache-Control', value: 'public, max-age=31536000, s-maxage=31536000, immutable' },
+          { key: 'Cloudflare-CDN-Cache-Control', value: 'public, max-age=31536000, immutable' },
+          { key: 'CDN-Cache-Control', value: 'public, max-age=31536000, immutable' },
+        ],
+      },
       {
         source: '/:path*',
         headers: [

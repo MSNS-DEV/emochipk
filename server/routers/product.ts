@@ -8,7 +8,14 @@ import { knownBrands } from "@/lib/utils/catalog";
 const ProductCreateSchema = z.object({
   articleNumber: z.string().min(1),
   name: z.string().min(1),
-  slug: z.string().min(1),
+  slug: z.string().min(1).transform((val) =>
+    val
+      .toLowerCase()
+      .trim()
+      .replace(/[\s_]+/g, '-')
+      .replace(/[^a-z0-9-]/g, '')
+      .replace(/^-+|-+$/g, '')
+  ),
   description: z.string().min(1),
   basePrice: z.number().positive(),
   salePrice: z.number().positive().optional(),
@@ -55,6 +62,7 @@ const GetAllInput = z.object({
   category: z.enum(["MEN", "WOMEN", "KIDS", "ACCESSORIES"]).optional(),
   occasion: z.enum(["ETHNIC", "WEDDING", "SPORTS", "FORMAL", "CASUAL"]).optional(),
   search: z.string().optional(),
+  hasImages: z.boolean().optional(),
   onSale: z.boolean().optional(),
   featured: z.boolean().optional(),
   brand: z.string().optional(),
@@ -78,8 +86,8 @@ export const productRouter = createTRPCRouter({
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const where: Record<string, any> = {
       isActive: true,
-      // Only show products that have at least one image on the storefront
-      images: { some: {} },
+      // All active products browseable by default; opt-in filter for callers requiring images only
+      ...(input?.hasImages ? { images: { some: {} } } : {}),
       ...(input?.category && { category: input.category }),
       ...(input?.style && {
         style: input.style === 'FORMAL_MOCCASINS' ? { in: ['FORMAL_MOCCASINS', 'MOCCASINS', 'OXFORD'] }
@@ -99,6 +107,7 @@ export const productRouter = createTRPCRouter({
           { name: { contains: input.search, mode: "insensitive" } },
           { description: { contains: input.search, mode: "insensitive" } },
           { articleNumber: { contains: input.search, mode: "insensitive" } },
+          { variants: { some: { sku: { contains: input.search, mode: "insensitive" } } } },
         ],
       }),
       ...(input?.priceMin !== undefined || input?.priceMax !== undefined
@@ -147,11 +156,28 @@ export const productRouter = createTRPCRouter({
 
   /** Single product for PDP — includes all variants, images, reviews */
   getBySlug: publicProcedure.input(z.string()).query(async ({ ctx, input }) => {
+    const trimmed = input.trim();
+    const normalized = trimmed
+      .toLowerCase()
+      .replace(/[\s_]+/g, '-')
+      .replace(/[^a-z0-9-]/g, '')
+      .replace(/^-+|-+$/g, '');
+
     return ctx.db.product.findFirst({
-      // Only show products that have at least one image on the storefront
-      where: { slug: input, isActive: true, images: { some: {} } },
+      where: {
+        OR: [
+          { slug: trimmed },
+          { slug: { equals: trimmed, mode: "insensitive" as const } },
+          ...(normalized && normalized !== trimmed
+            ? [{ slug: normalized }, { slug: { equals: normalized, mode: "insensitive" as const } }]
+            : []),
+          { articleNumber: { equals: trimmed, mode: "insensitive" as const } },
+          { variants: { some: { sku: { equals: trimmed, mode: "insensitive" as const } } } },
+        ],
+        isActive: true,
+      },
       include: {
-        images: { orderBy: { sortOrder: "asc" } },
+        images: { orderBy: [{ isPrimary: "desc" }, { sortOrder: "asc" }] },
         variants: {
           where: { isActive: true },
           include: { inventory: { include: { branch: true } } },
