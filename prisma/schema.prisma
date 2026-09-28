@@ -160,6 +160,20 @@ enum TransferStatus {
   REJECTED
 }
 
+enum PaymentTransactionStatus {
+  INITIATED
+  PENDING_3DS
+  CAPTURED
+  FAILED
+  CANCELLED
+  REFUNDED
+}
+
+enum DiscountType {
+  PERCENTAGE
+  FIXED_AMOUNT
+}
+
 enum InventoryTransactionType {
   SALE
   TRANSFER_OUT
@@ -443,7 +457,8 @@ model Order {
   shippingAddress ShippingAddress?
   returnRequests  ReturnRequest[]
   reviews         Review[]
-  trackingEvents  TrackingEvent[]
+  trackingEvents      TrackingEvent[]
+  paymentTransactions PaymentTransaction[]
 
   @@map("orders")
 }
@@ -639,3 +654,57 @@ model SizePreference {
   @@unique([customerId, style])
   @@map("size_preferences")
 }
+
+// ─────────────────────────────────────────────
+// PAYMENT & BANK ALLIANCE MODELS (Walkthrough Section 5.1)
+// ─────────────────────────────────────────────
+
+model PaymentTransaction {
+  id                   String                   @id @default(cuid())
+  orderId              String
+  gateway              String                   // SAFEPAY | ALFALAH_APG | PAYFAST
+  transactionReference String                   @unique // Safepay tracker or gateway trans ID
+  amount               Decimal                  @db.Decimal(10, 2)
+  currency             String                   @default("PKR")
+  status               PaymentTransactionStatus @default(INITIATED)
+
+  // Card & BIN metadata (strictly SAQ-A compliant, NO raw PAN or CVV)
+  cardScheme           String?                  // VISA, MASTERCARD, PAYPAK
+  cardLast4            String?                  // e.g. "1234"
+  cardBin              String?                  // First 6 digits e.g. "421444"
+  issuingBank          String?                  // e.g. "HBL", "ALFALAH", "MEEZAN"
+
+  // Auditing & Diagnostics
+  gatewayRawResponse   Json?
+  failureReason        String?
+  idempotencyKey       String?                  @unique
+  createdAt            DateTime                 @default(now())
+  updatedAt            DateTime                 @updatedAt
+
+  order                Order                    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@index([transactionReference])
+  @@map("payment_transactions")
+}
+
+model BankDiscountCampaign {
+  id                 String       @id @default(cuid())
+  name               String       // e.g. "HBL Alliances 15% Privilege"
+  issuingBank        String       // "HBL", "ALFALAH", "MEEZAN", etc.
+  binPrefixes        String[]     // ["421444", "410582", "524365"]
+  discountType       DiscountType @default(PERCENTAGE)
+  discountValue      Decimal      @db.Decimal(10, 2) // 15 for 15%
+  maxDiscountCap     Decimal?     @db.Decimal(10, 2) // e.g. 2500.00
+  minimumOrderAmount Decimal?     @db.Decimal(10, 2) // e.g. 5000.00
+  isActive           Boolean      @default(true)
+  startDate          DateTime
+  endDate            DateTime
+  promoCodeRequired  String?      // Optional promo code binding (e.g. "HBL15")
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+
+  @@index([issuingBank])
+  @@map("bank_discount_campaigns")
+}
+

@@ -5,7 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { ChevronLeft, CreditCard, Truck, Building2, Smartphone, Banknote, Lock, ShoppingBag, Loader2 } from 'lucide-react';
+import { ChevronLeft, CreditCard, Truck, Building2, Smartphone, Banknote, Lock, ShoppingBag, Loader2, Sparkles, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -93,14 +93,47 @@ export default function CheckoutPage() {
     notes: '',
   });
 
+  const [cardPrefix, setCardPrefix] = useState<string>('');
+
+  const cleanBin = cardPrefix.replace(/\D/g, '').slice(0, 6);
+
+  // Real-time BIN lookup query for Pakistani bank alliance discounts
+  const { data: binData, isFetching: isCheckingBin } = api.payment.lookupBin.useQuery(
+    { bin: cleanBin, subtotal: cart.subtotal },
+    { enabled: paymentMethod === 'CARD' && cleanBin.length >= 6 }
+  );
+
+  const appliedBankDiscount =
+    paymentMethod === 'CARD' && binData?.isEligible ? binData.discountAmount : 0;
+
+  // Mutation to create Safepay 3DS checkout session
+  const initiateCardPayment = api.payment.initiateCardSession.useMutation({
+    onSuccess: ({ redirectUrl }) => {
+      clearCart();
+      toast.success('Order created! Redirecting to secure card payment...');
+      window.location.href = redirectUrl;
+    },
+    onError: (err) => {
+      toast.error(err.message || 'Failed to initiate secure card payment.');
+      setIsSubmitting(false);
+    },
+  });
+
   // Fetch active branches for order placement
   const { data: branches } = api.branch.getAll.useQuery();
 
   const createOrder = api.order.create.useMutation({
     onSuccess: (order) => {
-      clearCart();
-      toast.success('Order placed!', { description: `Order #${order.orderNumber}` });
-      router.push(`/order-success?order=${order.orderNumber}`);
+      if (paymentMethod === 'CARD') {
+        initiateCardPayment.mutate({
+          orderNumber: order.orderNumber,
+          cardBin: cleanBin || undefined,
+        });
+      } else {
+        clearCart();
+        toast.success('Order placed!', { description: `Order #${order.orderNumber}` });
+        router.push(`/order-success?order=${order.orderNumber}`);
+      }
     },
     onError: (err) => {
       toast.error(err.message || 'Failed to place order. Please try again.');
@@ -165,7 +198,7 @@ export default function CheckoutPage() {
       },
       notes: formData.notes || undefined,
       couponCode: cart.couponCode || undefined,
-      discountAmount: cart.discountAmount,
+      discountAmount: (cart.discountAmount || 0) + appliedBankDiscount,
       shippingCost: cart.shippingAmount,
       items,
       // Meta CAPI enrichment
@@ -356,6 +389,65 @@ export default function CheckoutPage() {
                   ))}
                 </RadioGroup>
 
+                {paymentMethod === 'CARD' && (
+                  <div className="mt-4 space-y-4 p-4 rounded-lg bg-secondary/30 border border-border">
+                    {/* Bank Alliances Privilege Callout */}
+                    <div className="rounded-md bg-amber-500/10 border border-amber-500/20 p-3 text-xs text-amber-900 dark:text-amber-200">
+                      <div className="font-semibold flex items-center gap-1.5 mb-1 text-sm">
+                        <Sparkles className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                        Exclusive Bank Card Discounts Available:
+                      </div>
+                      <div className="grid grid-cols-2 gap-1.5 mt-1.5 text-xs text-muted-foreground">
+                        <div>• <strong>HBL:</strong> 15% OFF (up to Rs. 2,500)</div>
+                        <div>• <strong>Bank Alfalah:</strong> 10% OFF (up to Rs. 2,000)</div>
+                        <div>• <strong>Meezan Bank:</strong> 10% OFF (up to Rs. 1,500)</div>
+                        <div>• <strong>Standard Chartered:</strong> 15% OFF (up to Rs. 3,000)</div>
+                      </div>
+                    </div>
+
+                    {/* Card BIN Input */}
+                    <div className="space-y-2">
+                      <Label htmlFor="cardPrefix" className="text-sm font-medium">
+                        Card Number (First 6 Digits for Instant Discount)
+                      </Label>
+                      <div className="relative">
+                        <Input
+                          id="cardPrefix"
+                          name="cardPrefix"
+                          type="text"
+                          maxLength={19}
+                          placeholder="e.g. 4214 44•• •••• ••••"
+                          value={cardPrefix}
+                          onChange={(e) => setCardPrefix(e.target.value)}
+                          className="font-mono pr-10"
+                        />
+                        {isCheckingBin && (
+                          <Loader2 className="absolute right-3 top-2.5 h-4 w-4 animate-spin text-muted-foreground" />
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Enter your card prefix to verify bank alliance discount. You will be redirected to Safepay 3D Secure to complete payment.
+                      </p>
+                    </div>
+
+                    {/* BIN Discount Feedback Badge */}
+                    {binData?.isEligible && (
+                      <div className="p-3 rounded-md bg-green-50 border border-green-200 text-green-800 text-xs dark:bg-green-950/40 dark:border-green-800 dark:text-green-300 flex items-center gap-2">
+                        <CheckCircle2 className="h-4 w-4 shrink-0 text-green-600" />
+                        <div>
+                          <span className="font-semibold">{binData.bankName}:</span> {binData.message}
+                        </div>
+                      </div>
+                    )}
+
+                    {binData && !binData.isEligible && binData.message && (
+                      <div className="p-2.5 rounded-md bg-amber-50 border border-amber-200 text-amber-800 text-xs dark:bg-amber-950/40 dark:border-amber-800 dark:text-amber-300">
+                        {binData.message}
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {paymentMethod === 'COD' && (
                   <p className="mt-4 p-3 rounded-lg bg-amber-50 text-amber-800 text-sm dark:bg-amber-900/20 dark:text-amber-200">
                     A verification call will be made before dispatch to confirm your order. PKR 50 COD fee applies.
@@ -381,10 +473,12 @@ export default function CheckoutPage() {
                   type="submit"
                   size="lg"
                   className="w-full text-base"
-                  disabled={isSubmitting || createOrder.isPending}
+                  disabled={isSubmitting || createOrder.isPending || initiateCardPayment.isPending}
                 >
-                  {(isSubmitting || createOrder.isPending) ? (
+                  {(isSubmitting || createOrder.isPending || initiateCardPayment.isPending) ? (
                     <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Processing…</>
+                  ) : paymentMethod === 'CARD' ? (
+                    `Proceed to Card Payment — ${formatPrice(Math.max(0, cart.total - appliedBankDiscount))}`
                   ) : (
                     `Place Order — ${formatPrice(cart.total + (paymentMethod === 'COD' ? 50 : 0))}`
                   )}
@@ -460,6 +554,12 @@ export default function CheckoutPage() {
                     <span>-{formatPrice(cart.discountAmount)}</span>
                   </div>
                 )}
+                {appliedBankDiscount > 0 && (
+                  <div className="flex justify-between text-green-600 font-medium">
+                    <span>Bank Discount ({binData?.bankName})</span>
+                    <span>-{formatPrice(appliedBankDiscount)}</span>
+                  </div>
+                )}
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Shipping</span>
                   <span>
@@ -482,7 +582,7 @@ export default function CheckoutPage() {
 
               <div className="flex justify-between text-lg font-semibold mb-6">
                 <span>Total</span>
-                <span>{formatPrice(cart.total + (paymentMethod === 'COD' ? 50 : 0))}</span>
+                <span>{formatPrice(Math.max(0, cart.total + (paymentMethod === 'COD' ? 50 : 0) - appliedBankDiscount))}</span>
               </div>
 
               {/* Submit Button (Desktop) */}
@@ -491,13 +591,15 @@ export default function CheckoutPage() {
                   type="submit"
                   size="lg"
                   className="w-full text-base"
-                  disabled={isSubmitting || createOrder.isPending}
+                  disabled={isSubmitting || createOrder.isPending || initiateCardPayment.isPending}
                   onClick={handleSubmit}
                 >
-                  {(isSubmitting || createOrder.isPending) ? (
+                  {(isSubmitting || createOrder.isPending || initiateCardPayment.isPending) ? (
                     <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Processing…</>
+                  ) : paymentMethod === 'CARD' ? (
+                    `Proceed to Card Payment — ${formatPrice(Math.max(0, cart.total - appliedBankDiscount))}`
                   ) : (
-                    'Place Order'
+                    `Place Order — ${formatPrice(cart.total + (paymentMethod === 'COD' ? 50 : 0))}`
                   )}
                 </Button>
                 <p className="text-xs text-center text-muted-foreground mt-3 flex items-center justify-center gap-1">

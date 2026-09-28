@@ -7,6 +7,28 @@
   "env": {
     "NEXT_PUBLIC_APP_URL": "https://executivemochi.pk"
   },
+  "crons": [
+    {
+      "path": "/api/cron/courier-sync",
+      "schedule": "0 */2 * * *"
+    },
+    {
+      "path": "/api/cron/inventory-cleanup",
+      "schedule": "*/30 * * * *"
+    },
+    {
+      "path": "/api/cron/gmc-sync",
+      "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/cron/credit-expiry",
+      "schedule": "0 1 * * *"
+    },
+    {
+      "path": "/api/cron/sitemap-ping",
+      "schedule": "0 3 * * 0"
+    }
+  ],
   "headers": [
     {
       "source": "/api/images/(.*)",

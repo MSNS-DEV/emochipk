@@ -1,7 +1,7 @@
 # Executive Mochi (`emochipk`) — Credit & Debit Card Payments & Bank Affiliation Walkthrough
 
 **Target Platform:** Executive Mochi (`https://executivemochi.pk`)  
-**Technology Stack:** Next.js 16 (App Router), React 19, TypeScript, Prisma 6 (Neon PostgreSQL), tRPC v11, Tailwind CSS 4  
+**Technology Stack:** Next.js 16 (App Router), React 19, TypeScript, Prisma 6 (Vercel Prisma Postgres `emochipkdb`), tRPC v11, Tailwind CSS 4  
 **Scope:** Payment Gateway Research, 3D Secure 2.0, PCI-DSS SAQ-A Compliance, Local Bank Affiliations & BIN Sponsorships, Technical Architecture, and Step-by-Step Implementation Guide.
 
 ---
@@ -925,9 +925,13 @@ Safepay and bank acquirers provide automated **Settlement Files (CSV / MT940)** 
 
 ---
 
-## 8. Remaining Questions & Next Steps
-
-1. **Gateways Decision:** Does Executive Mochi wish to launch with **Safepay** as the single primary modern gateway (fastest time-to-market, zero setup fees, modern `@sfpy/atoms` UI), or pursue parallel physical paperwork for **Bank Alfalah APG**?
-2. **Bank Selection:** Which bank alliance should be prioritized first? (Recommendation: **Bank Alfalah** due to its integrated APG discount engine, followed by **HBL** for maximum volume).
-3. **Discount Budget:** Confirm the proposed promotional discount parameters (e.g. 15% discount, PKR 5,000 minimum cart, PKR 2,000 maximum cap).
-4. **Environment Keys:** Safepay sandbox credentials should be acquired from `https://sandbox.api.getsafepay.com` to test 3DS test card authentication end-to-end.
+## 8. Resolution Status & Implementation Completion
+ 
+ 1. **Gateways Decision:** **Safepay** is implemented as the primary modern gateway with 3DS hosted checkout, HMAC-SHA256 webhook validation, and automatic order processing.
+ 2. **Bank Alliances Seeded:** All 4 top-tier Pakistani bank alliances are seeded in the database:
+    - **HBL:** 15% discount (max cap PKR 2,500, min order PKR 5,000).
+    - **Bank Alfalah:** 10% discount (max cap PKR 2,000, min order PKR 5,000).
+    - **Meezan Bank:** 10% discount (max cap PKR 1,500, min order PKR 4,000).
+    - **Standard Chartered:** 15% discount (max cap PKR 3,000, min order PKR 6,000).
+ 3. **Checkout UI:** Real-time 6-digit BIN lookup (`api.payment.lookupBin`) integrated in `app/(storefront)/checkout/page.tsx` with instant discount calculation and 3DS payment redirection.
+ 4. **PCI-DSS Compliance:** Enforced SAQ-A standard with zero cardholder data stored on the application server. Only tokenized tracker references and masked last 4 digits are persisted.

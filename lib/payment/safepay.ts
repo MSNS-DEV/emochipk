@@ -1,9 +1,27 @@
 import crypto from 'crypto';
 
 export interface CreateSessionParams {
-  amount: number;
-  currency: string;
+  orderId?: string;
   orderNumber: string;
+  amount: number; // in PKR
+  currency: string;
+  customer?: {
+    email: string;
+    phone: string;
+    firstName: string;
+    lastName: string;
+  };
+  billingAddress?: {
+    street: string;
+    city: string;
+    province: string;
+    postalCode?: string;
+  };
+  discountInfo?: {
+    campaignId?: string;
+    bankName?: string;
+    discountAmount: number;
+  };
   returnUrl: string;
   cancelUrl: string;
 }
@@ -12,6 +30,17 @@ export interface CheckoutSessionResult {
   token: string;
   redirectUrl: string;
   tracker: string;
+}
+
+export interface WebhookVerificationResult {
+  isValid: boolean;
+  orderNumber?: string;
+  tracker?: string;
+  amount?: number;
+  status?: 'CAPTURED' | 'FAILED';
+  cardBin?: string;
+  cardLast4?: string;
+  cardScheme?: string;
 }
 
 const SAFEPAY_ENV = process.env.SAFEPAY_ENVIRONMENT ?? 'sandbox';
@@ -33,6 +62,20 @@ export class SafepayService {
    * Initializes a payment session on Safepay and returns the checkout token & redirect URL.
    */
   static async createCheckoutSession(params: CreateSessionParams): Promise<CheckoutSessionResult> {
+    if (!SAFEPAY_API_KEY) {
+      if (SAFEPAY_ENV === 'production') {
+        throw new Error('SAFEPAY_API_KEY environment variable is not configured.');
+      }
+      // Resilient sandbox simulation when running in dev/preview without live credentials
+      const mockToken = `sbox_mock_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+      const separator = params.returnUrl.includes('?') ? '&' : '?';
+      return {
+        token: mockToken,
+        redirectUrl: `${params.returnUrl}${separator}tracker=${mockToken}&simulated=true`,
+        tracker: mockToken,
+      };
+    }
+
     const res = await fetch(`${BASE_URL}/order/v1/init`, {
       method: 'POST',
       headers: {

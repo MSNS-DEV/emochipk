@@ -66,7 +66,7 @@ export async function POST(req: NextRequest) {
         where: {
           OR: [
             ...(orderNumber ? [{ orderNumber }] : []),
-            ...(tracker ? [{ awbNumber: tracker }] : []),
+            ...(tracker ? [{ awbNumber: tracker }, { paymentTransactions: { some: { transactionReference: tracker } } }] : []),
           ],
         },
         include: {
@@ -79,6 +79,19 @@ export async function POST(req: NextRequest) {
       if (!order) {
         console.warn(`[Safepay Webhook] No matching order found for ${orderNumber || tracker}`);
         return { matched: false, alreadyProcessed: false, order: null };
+      }
+
+      // Update payment transaction if tracker exists
+      if (tracker) {
+        await tx.paymentTransaction.updateMany({
+          where: { transactionReference: tracker },
+          data: {
+            status: state === 'PAID' ? 'CAPTURED' : 'FAILED',
+            cardLast4: event.payment_details?.last4 || null,
+            cardScheme: event.payment_details?.scheme || null,
+            gatewayRawResponse: rawJson as any,
+          },
+        });
       }
 
       // Idempotency: if already paid/processing, don't duplicate

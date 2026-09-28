@@ -44,12 +44,15 @@ Configure the following environment variables in **Project → Settings → Envi
 | `S3_SECRET_ACCESS_KEY` | Cloudflare R2 S3 Secret Access Key | Sensitive |
 | `NEXT_PUBLIC_IMAGE_URL` | Direct Cloudflare R2 custom domain (e.g. `https://images.executivemochi.pk`) | Non-sensitive |
 
-### 🚚 Courier & Payment APIs
+### 🚚 Courier, Payments & Cron Automation
 
 | Variable | Description | Type |
 |---|---|---|
+| `SAFEPAY_API_KEY` | Safepay merchant API secret key | Sensitive |
+| `SAFEPAY_WEBHOOK_SECRET` | Safepay merchant webhook secret for HMAC verification | Sensitive |
+| `SAFEPAY_ENVIRONMENT` | `sandbox` or `production` (default: `sandbox`) | Non-sensitive |
+| `CRON_SECRET` | Secret token used to authenticate `/api/cron/*` requests via Bearer header | Sensitive |
 | `LEOPARDS_API_PASSWORD` | Leopards courier portal API password | Sensitive |
-| `SAFEPAY_WEBHOOK_SECRET` | Safepay merchant webhook secret | Sensitive |
 | `TRAX_PASSWORD` | Trax courier integration password | Sensitive |
 | `SEED_ADMIN_EMAIL` | Administrator seed email | Sensitive |
 | `SEED_ADMIN_PASSWORD` | Administrator seed password | Sensitive |
