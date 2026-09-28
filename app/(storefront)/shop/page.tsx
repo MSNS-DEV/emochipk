@@ -153,6 +153,7 @@ interface ShopFilters {
   featured?: boolean;
   sortBy?: string;
   search?: string;
+  hasImages?: boolean;
 }
 
 /** Parse all filter state from URL search params */
@@ -182,6 +183,7 @@ function parseFiltersFromParams(searchParams: URLSearchParams): {
       onSale: filterParam === 'sale' || searchParams.get('onSale') === 'true' ? true : undefined,
       featured: filterParam === 'featured' || searchParams.get('featured') === 'true' ? true : undefined,
       search: searchParams.get('search') ?? searchParams.get('q') ?? undefined,
+      hasImages: searchParams.get('hasImages') === 'false' ? false : true,
     },
     priceRange: [priceMin, priceMax],
     page: pageParam ? Number(pageParam) : 1,
@@ -207,6 +209,7 @@ function buildSearchParams(
   if (filters.featured) params.set('featured', 'true');
   if (filters.sortBy && filters.sortBy !== 'newest') params.set('sortBy', filters.sortBy);
   if (filters.search) params.set('search', filters.search);
+  if (filters.hasImages === false) params.set('hasImages', 'false');
   if (page > 1) params.set('page', String(page));
 
   return params;
@@ -298,6 +301,7 @@ function ShopContent() {
     priceMax: priceRange[1] < 20000 ? priceRange[1] : undefined,
     sortBy: filters.sortBy as never,
     search: filters.search,
+    hasImages: filters.hasImages ?? true,
     page,
     pageSize: 12,
   });
@@ -309,11 +313,13 @@ function ShopContent() {
   const { data: bgData } = api.product.getAll.useQuery({
     category: filters.category as never,
     style: filters.style ? (getDbStyle(filters.style) as never) : undefined,
+    hasImages: true,
     pageSize: 40,
   });
 
   // Query general catalog products as fallback so cover background is always populated
   const { data: allCatalogData } = api.product.getAll.useQuery({
+    hasImages: true,
     pageSize: 40,
   });
 
@@ -388,11 +394,12 @@ function ShopContent() {
     if (filters.featured) n++;
     if (priceRange[0] > 0 || priceRange[1] < 20000) n++;
     if (filters.search) n++;
+    if (filters.hasImages === false) n++;
     return n;
   }, [filters, priceRange]);
 
   const clearAll = () => {
-    setFilters({ sortBy: filters.sortBy });
+    setFilters({ sortBy: filters.sortBy, hasImages: true });
     setPriceRange([0, 20000]);
     setSearchInput('');
     setPage(1);
@@ -786,6 +793,22 @@ function ShopContent() {
               Featured ★
             </Label>
           </div>
+          <div className="flex items-center space-x-2">
+            <Checkbox
+              id="filter-has-images"
+              checked={filters.hasImages !== false}
+              onCheckedChange={(checked) => {
+                setFilters((f) => ({
+                  ...f,
+                  hasImages: checked ? true : false,
+                }));
+                setPage(1);
+              }}
+            />
+            <Label htmlFor="filter-has-images" className="text-xs sm:text-sm cursor-pointer select-none">
+              With Photos Only 📸
+            </Label>
+          </div>
         </div>
       </div>
     </div>
@@ -1036,6 +1059,17 @@ function ShopContent() {
                     </button>
                   </Badge>
                 ))}
+                {filters.hasImages === false && (
+                  <Badge variant="secondary" className="gap-1.5 text-xs py-1 px-2.5 rounded-lg border">
+                    All Products (incl. no photos)
+                    <button
+                      onClick={() => setFilters((f) => ({ ...f, hasImages: true }))}
+                      className="hover:text-amber-500"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                )}
                 {activeFilterCount > 0 && (
                   <Button
                     variant="ghost"

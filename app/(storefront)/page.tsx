@@ -46,13 +46,13 @@ async function getHomeProducts() {
   const caller = createCaller({ db, session: null });
 
   const [featuredRes, newRes, saleRes, kidsRes, menRes, womenRes, accRes] = await Promise.allSettled([
-    caller.product.getAll({ featured: true, pageSize: 40 }),
-    caller.product.getAll({ sortBy: 'newest', pageSize: 4 }),
-    caller.product.getAll({ onSale: true, pageSize: 4 }),
-    caller.product.getAll({ category: 'KIDS', pageSize: 50 }),
-    caller.product.getAll({ category: 'MEN', pageSize: 50 }),
-    caller.product.getAll({ category: 'WOMEN', pageSize: 50 }),
-    caller.product.getAll({ category: 'ACCESSORIES', pageSize: 50 }),
+    caller.product.getAll({ featured: true, hasImages: true, pageSize: 40 }),
+    caller.product.getAll({ sortBy: 'newest', hasImages: true, pageSize: 4 }),
+    caller.product.getAll({ onSale: true, hasImages: true, pageSize: 4 }),
+    caller.product.getAll({ category: 'KIDS', hasImages: true, pageSize: 50 }),
+    caller.product.getAll({ category: 'MEN', hasImages: true, pageSize: 50 }),
+    caller.product.getAll({ category: 'WOMEN', hasImages: true, pageSize: 50 }),
+    caller.product.getAll({ category: 'ACCESSORIES', hasImages: true, pageSize: 50 }),
   ]);
 
   return {

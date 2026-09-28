@@ -175,6 +175,7 @@ export default async function ProductPage({ params, searchParams }: ProductPageP
     const related = await caller.product.getAll({
       style: dbStyle as never,
       category: product.category as never,
+      hasImages: true,
       page: 1,
       pageSize: 5,
     });
