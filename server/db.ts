@@ -12,7 +12,6 @@ function getSanitizedDbUrl(): string {
   // Catch unreplaced CI/CD template variables (${{...}}) or placeholder values
   if (
     envUrl.includes("${{") ||
-    envUrl.includes("db.prisma.io") ||
     envUrl.includes("postgres://postgres:")
   ) {
     throw new Error("DATABASE_URL contains invalid placeholder or unsupported template variable.");

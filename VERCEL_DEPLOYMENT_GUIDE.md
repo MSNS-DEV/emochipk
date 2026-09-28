@@ -22,12 +22,9 @@ Configure the following environment variables in **Project → Settings → Envi
 
 ### 🔑 Required Core Variables
 
-| Variable | Description / Example | Type |
-|---|---|---|
-| `DATABASE_URL` | Neon pooled connection string (`...-pooler...neon.tech/neondb?sslmode=require`) | Sensitive |
-| `DIRECT_URL` | Neon direct unpooled connection string (`...neon.tech/neondb?sslmode=require`) | Sensitive |
-| `DATABASE_URL_UNPOOLED` | Neon direct connection string for migrations | Sensitive |
-| `NEON_API_KEY` | Neon Management API key (`napi_...`) | Sensitive |
+| `DATABASE_URL` | Vercel emochipkdb connection string (`postgres://...db.prisma.io:5432/...`) | Sensitive |
+| `DIRECT_URL` | Vercel emochipkdb direct connection string | Sensitive |
+| `POSTGRES_URL` | Vercel emochipkdb connection string | Sensitive |
 | `AUTH_SECRET` | 32-character random hex/base64 string (`openssl rand -base64 32`) | Sensitive |
 | `NEXTAUTH_SECRET` | 32-character random hex/base64 string | Sensitive |
 | `NEXTAUTH_URL` | `https://executivemochi.pk` | Non-sensitive |

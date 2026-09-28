@@ -3,7 +3,8 @@
 // Any schema changes require a formal SRS revision.
 
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
 }
 
 datasource db {
