@@ -248,3 +248,12 @@
     transform: translateY(0);
   }
 }
+
+/* Hide scrollbar for clean luxury carousels across browsers */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}

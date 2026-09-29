@@ -84,7 +84,7 @@ export function SiteFooter() {
           <div className="lg:col-span-2">
             <Link href="/" className="flex items-center gap-2 group mb-4">
               <Image
-                src="/logo.ico"
+                src="/logo.png"
                 alt="Executive Mochi Logo"
                 width={32}
                 height={32}

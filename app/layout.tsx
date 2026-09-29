@@ -98,8 +98,12 @@ export const metadata: Metadata = {
     'google-adsense-account': 'ca-pub-1351871288722699',
   },
   icons: {
-    icon: '/logo.ico',
-    apple: '/logo.ico',
+    icon: [
+      { url: '/favicon.ico' },
+      { url: '/logo.png', type: 'image/png' },
+    ],
+    apple: [{ url: '/apple-icon.png', sizes: '180x180', type: 'image/png' }],
+    shortcut: '/favicon.ico',
   },
 }
 

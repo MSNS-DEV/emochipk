@@ -317,8 +317,10 @@ function ShopContent() {
     pageSize: 40,
   });
 
-  // Query general catalog products as fallback so cover background is always populated
+  // Query fallback catalog products scoped to current category or featured items
   const { data: allCatalogData } = api.product.getAll.useQuery({
+    category: filters.category as never,
+    featured: !filters.category ? true : undefined,
     hasImages: true,
     pageSize: 40,
   });
@@ -328,21 +330,21 @@ function ShopContent() {
     const primaryProducts = bgData?.items?.length ? bgData.items : (data?.items || []);
     const fallbackProducts = allCatalogData?.items || [];
 
-    // Extract images from primary active collection
+    // Extract images from primary active collection (1-2 images per product for visual diversity)
     (primaryProducts as unknown as CatalogProduct[]).forEach((prod) => {
       if (prod.images && prod.images.length > 0) {
-        prod.images.forEach((img) => {
-          if (img?.url) urls.push(img.url);
+        prod.images.slice(0, 2).forEach((img) => {
+          if (img?.url && !urls.includes(img.url)) urls.push(img.url);
         });
       }
     });
 
-    // If active collection has few images, top up with general catalog images
+    // If active collection has few images, top up with category fallback products
     if (urls.length < 15) {
       (fallbackProducts as unknown as CatalogProduct[]).forEach((prod) => {
         if (prod.images && prod.images.length > 0) {
-          prod.images.forEach((img) => {
-            if (img?.url) urls.push(img.url);
+          prod.images.slice(0, 2).forEach((img) => {
+            if (img?.url && !urls.includes(img.url)) urls.push(img.url);
           });
         }
       });

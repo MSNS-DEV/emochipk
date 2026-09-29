@@ -6,16 +6,16 @@ E-Commerce Platform
 
 **SOFTWARE REQUIREMENTS SPECIFICATION**
 
-Version 1.3 | September 28, 2026 | Status: Production Baseline
+**Version 1.4 | September 29, 2026 | Status: Production Baseline**
 
   ----------------------- ------------------------------------------------------
   **Document Title**      Software Requirements Specification (SRS)
 
   **System**              Executive Mochi E-Commerce Platform
 
-  **Version**             1.3
+  **Version**             1.4
 
-  **Date**                September 28, 2026
+  **Date**                September 29, 2026
 
   **Status**              Production Baseline
 
@@ -49,6 +49,8 @@ Version 1.3 | September 28, 2026 | Status: Production Baseline
   1.2           September 14, 2026 Engineering Team   Production architecture sync: Next.js 16 & React 19, Cloudflare R2 Zero-Egress media, Google Merchant Center & Customer Reviews, Meta CAPI, 1,269+ product dynamic SEO sitemap, GEO (llms.txt), and card payments with 8-digit BIN discount engine
 
   1.3           September 28, 2026 Engineering Team   Database migration to Vercel Prisma Postgres (emochipkdb), storefront photo gating (hasImages: true), implementation of Section 3.10 Scheduled Background Automation crons, and activation of PaymentTransaction and BankDiscountCampaign models with real-time checkout BIN discounts.
+
+  1.4           September 29, 2026 Engineering Team   Storefront UI improvisation & brand asset standardization: multi-category horizontal scrolling product shelves (ProductShelf) across Men, Women, Kids, and Accessories, direct luxury PDP navigation with case-insensitive color synchronization, brand logo & favicon standardization (256x256 uncompressed PNG), Cloudflare R2 admin-uploaded photo ingestion (71 new images linked), and primary image flag recalibration across all 343 photographed products.
   ------------- ---------------- ------------------ -------------------------------------------------------------------
 
   -----------------------------------------------------------------------

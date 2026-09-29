@@ -213,7 +213,7 @@ export function SiteHeader() {
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2 group">
             <Image
-              src="/logo.ico"
+              src="/logo.png"
               alt="Executive Mochi Logo"
               width={40}
               height={40}

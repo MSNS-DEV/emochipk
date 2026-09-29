@@ -464,6 +464,7 @@ export default async function ProductPage({ params, searchParams }: ProductPageP
           product={product as never}
           initialVariantSku={typeof rawSearchParams?.variant === 'string' ? rawSearchParams.variant : undefined}
           initialColor={typeof rawSearchParams?.color === 'string' ? rawSearchParams.color : undefined}
+          initialSize={typeof rawSearchParams?.size === 'string' ? rawSearchParams.size : undefined}
         />
       </Suspense>
 

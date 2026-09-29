@@ -33,6 +33,7 @@ interface ProductDetailsProps {
   product: CatalogProduct;
   initialVariantSku?: string;
   initialColor?: string;
+  initialSize?: string;
 }
 
 /** Strip internal disambiguation suffixes (K = kids, Y = youth) for display */
@@ -134,10 +135,11 @@ function isEuSize(size: string): boolean {
   return ALL_EU_SIZES.has(size);
 }
 
-export function ProductDetails({ product, initialVariantSku, initialColor }: ProductDetailsProps) {
+export function ProductDetails({ product, initialVariantSku, initialColor, initialSize }: ProductDetailsProps) {
   const searchParams = useSearchParams();
   const colorParam = initialColor || searchParams?.get('color');
   const variantParam = initialVariantSku || searchParams?.get('variant');
+  const sizeParam = initialSize || searchParams?.get('size');
 
   // Match initial variant if specified via ?variant=SKU in URL (e.g. from Google Merchant Center or marketing)
   const initialVariant = useMemo(() => {
@@ -161,6 +163,11 @@ export function ProductDetails({ product, initialVariantSku, initialColor }: Pro
   });
   const [selectedSize, setSelectedSize] = useState<string | null>(() => {
     if (initialVariant) return initialVariant.sizeUK;
+    if (sizeParam) {
+      const sizes = getProductSizes(product);
+      const match = sizes.find((s) => s.toLowerCase() === sizeParam.toLowerCase());
+      if (match) return match;
+    }
     return null;
   });
   const [quantity, setQuantity] = useState(1);
@@ -183,7 +190,10 @@ export function ProductDetails({ product, initialVariantSku, initialColor }: Pro
 
   // Get color-specific images, fall back to general images
   const displayImages = useMemo(() => {
-    const colorSpecificImages = product.images.filter((img) => img.colorTag === selectedColor);
+    const target = selectedColor.trim().toLowerCase();
+    const colorSpecificImages = product.images.filter(
+      (img) => img.colorTag && img.colorTag.trim().toLowerCase() === target
+    );
     return colorSpecificImages.length > 0 ? colorSpecificImages : product.images;
   }, [product, selectedColor]);
 
@@ -233,7 +243,12 @@ export function ProductDetails({ product, initialVariantSku, initialColor }: Pro
         {
         name: product.name,
         price: effectivePrice + Number(selectedVariant.priceDelta ?? 0),
-        image: product.images.find((image) => image.colorTag === selectedColor)?.url ?? product.images[0]?.url,
+        image:
+          product.images.find(
+            (image) =>
+              image.colorTag &&
+              image.colorTag.trim().toLowerCase() === selectedColor.trim().toLowerCase()
+          )?.url ?? product.images[0]?.url,
         slug: product.slug,
         description: product.description,
         color: selectedColor,

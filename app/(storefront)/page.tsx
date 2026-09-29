@@ -1,12 +1,21 @@
 import Link from 'next/link';
-import Image from 'next/image';
-import { ArrowRight, Truck, RefreshCw, Shield, Award, MapPin, Sparkles, GraduationCap, CheckCircle2, ShieldCheck } from 'lucide-react';
+import {
+  ArrowRight,
+  Truck,
+  RefreshCw,
+  Shield,
+  Award,
+  MapPin,
+  Sparkles,
+  GraduationCap,
+  CheckCircle2,
+  ShieldCheck,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { ProductCard } from '@/components/product-card';
+import { ProductShelf } from '@/components/product-shelf';
 import { CategorySlideshow } from '@/components/category-slideshow';
 import { HeroProductMarquee } from '@/components/hero-product-marquee';
-import { styleCategories, genderCategories, formatPrice, getDbStyle } from '@/lib/data';
+import { styleCategories, genderCategories } from '@/lib/data';
 import { createCallerFactory } from '@/server/trpc';
 import { appRouter } from '@/server/root';
 import { db } from '@/server/db';
@@ -35,9 +44,9 @@ export const revalidate = 60; // Revalidate home page every 60s to pick up newly
 
 const features = [
   { icon: Truck, title: 'Free Shipping', description: 'On orders above PKR 5,000' },
-  { icon: RefreshCw, title: '7-Day Exchange', description: 'Easy returns & exchanges' },
-  { icon: Shield, title: 'Secure Payment', description: 'COD · JazzCash · Raast' },
-  { icon: Award, title: 'Handcrafted', description: 'Pasrur & Ghakhar artisans' },
+  { icon: RefreshCw, title: '7-Day Exchange', description: 'Doorstep size & style exchange' },
+  { icon: Shield, title: 'Secure Payment', description: 'COD · JazzCash · Raast · Card' },
+  { icon: Award, title: 'Handcrafted', description: 'Pasrur & Ghakhar master artisans' },
 ];
 
 /** Fetch products via tRPC server caller — no HTTP round-trip */
@@ -45,20 +54,16 @@ async function getHomeProducts() {
   const createCaller = createCallerFactory(appRouter);
   const caller = createCaller({ db, session: null });
 
-  const [featuredRes, newRes, saleRes, kidsRes, menRes, womenRes, accRes] = await Promise.allSettled([
-    caller.product.getAll({ featured: true, hasImages: true, pageSize: 40 }),
-    caller.product.getAll({ sortBy: 'newest', hasImages: true, pageSize: 4 }),
-    caller.product.getAll({ onSale: true, hasImages: true, pageSize: 4 }),
-    caller.product.getAll({ category: 'KIDS', hasImages: true, pageSize: 50 }),
-    caller.product.getAll({ category: 'MEN', hasImages: true, pageSize: 50 }),
-    caller.product.getAll({ category: 'WOMEN', hasImages: true, pageSize: 50 }),
-    caller.product.getAll({ category: 'ACCESSORIES', hasImages: true, pageSize: 50 }),
+  const [featuredRes, kidsRes, menRes, womenRes, accRes] = await Promise.allSettled([
+    caller.product.getAll({ featured: true, hasImages: true, pageSize: 30 }),
+    caller.product.getAll({ category: 'KIDS', hasImages: true, pageSize: 40 }),
+    caller.product.getAll({ category: 'MEN', hasImages: true, pageSize: 40 }),
+    caller.product.getAll({ category: 'WOMEN', hasImages: true, pageSize: 40 }),
+    caller.product.getAll({ category: 'ACCESSORIES', hasImages: true, pageSize: 40 }),
   ]);
 
   return {
     featured: featuredRes.status === 'fulfilled' ? featuredRes.value.items : [],
-    newArrivals: newRes.status === 'fulfilled' ? newRes.value.items : [],
-    onSale: saleRes.status === 'fulfilled' ? saleRes.value.items : [],
     kidsCollection: kidsRes.status === 'fulfilled' ? kidsRes.value.items : [],
     menCollection: menRes.status === 'fulfilled' ? menRes.value.items : [],
     womenCollection: womenRes.status === 'fulfilled' ? womenRes.value.items : [],
@@ -67,9 +72,13 @@ async function getHomeProducts() {
 }
 
 export default async function HomePage() {
-  const { featured, newArrivals, onSale, kidsCollection, menCollection, womenCollection, accCollection } = await getHomeProducts();
-
-  const featuredGrid = featured.slice(0, 4);
+  const {
+    featured,
+    kidsCollection,
+    menCollection,
+    womenCollection,
+    accCollection,
+  } = await getHomeProducts();
 
   const categoryImages: Record<string, string[]> = {
     MEN: [],
@@ -80,11 +89,9 @@ export default async function HomePage() {
 
   const allFetchedProducts = [
     ...featured,
-    ...newArrivals,
-    ...onSale,
-    ...kidsCollection,
     ...menCollection,
     ...womenCollection,
+    ...kidsCollection,
     ...accCollection,
   ] as unknown as CatalogProduct[];
 
@@ -101,18 +108,18 @@ export default async function HomePage() {
   allFetchedProducts.forEach((prod) => {
     if (!prod.images || prod.images.length === 0) return;
 
-    // Build category slide buckets for category slideshows
-    prod.images.forEach((img) => {
-      if (img?.url && prod.category && categoryImages[prod.category] !== undefined) {
-        categoryImages[prod.category].push(img.url);
+    // Build category slide buckets for category slideshows (1 primary image per product, up to 10 products)
+    const primaryImg = prod.images.find((img) => img?.isPrimary)?.url || prod.images[0]?.url;
+    if (primaryImg && prod.category && categoryImages[prod.category] !== undefined && categoryImages[prod.category].length < 10) {
+      if (!categoryImages[prod.category].includes(primaryImg)) {
+        categoryImages[prod.category].push(primaryImg);
       }
-    });
+    }
 
     if (prod.id && seenProductIds.has(prod.id)) return;
     if (prod.id) seenProductIds.add(prod.id);
 
     // Pick 1 primary image for this product
-    const primaryImg = prod.images.find((img) => img?.isPrimary)?.url || prod.images[0]?.url;
     if (primaryImg) {
       const cat = prod.category && categoryBuckets[prod.category] ? prod.category : 'MEN';
       categoryBuckets[cat].push(primaryImg);
@@ -124,7 +131,7 @@ export default async function HomePage() {
     });
   });
 
-  // Interleave primary images round-robin across categories
+  // Interleave primary images round-robin across categories for hero marquee
   const interleavedHeroImages: string[] = [];
   const maxBucketLen = Math.max(
     categoryBuckets.MEN.length,
@@ -143,6 +150,21 @@ export default async function HomePage() {
   // Combine interleaved primary images with fallback secondary images if list is small
   const heroImagesPool = Array.from(new Set([...interleavedHeroImages, ...secondaryImages]));
   const heroImages = heroImagesPool.slice(0, 48);
+
+  // Helper to filter valid photographed items and prioritize featured masterpieces first
+  const prepareShelfProducts = (items: unknown[]): CatalogProduct[] => {
+    const valid = (items as CatalogProduct[]).filter(
+      (p) => p.images && p.images.length > 0 && p.images.some((img) => img?.url)
+    );
+    // Sort featured items to front so homepage shelves highlight bestsellers
+    return [...valid].sort((a, b) => (b.isFeatured ? 1 : 0) - (a.isFeatured ? 1 : 0)).slice(0, 16);
+  };
+
+  const featuredShelfProducts = prepareShelfProducts(featured);
+  const menShelfProducts = prepareShelfProducts(menCollection);
+  const womenShelfProducts = prepareShelfProducts(womenCollection);
+  const kidsShelfProducts = prepareShelfProducts(kidsCollection);
+  const accShelfProducts = prepareShelfProducts(accCollection);
 
   return (
     <>
@@ -229,21 +251,121 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* ─── FEATURED SECTION: KIDS SCHOOL SHOES COLLECTION ───────────────────────────── */}
-      <section className="py-16 lg:py-24 bg-gradient-to-b from-secondary/40 via-background to-background">
+      {/* ─── FEATURED MASTERPIECES SHELF (DIRECT PAYOFF FOR HERO CTA) ───────── */}
+      {featuredShelfProducts.length > 0 && (
+        <ProductShelf
+          title="Featured Masterpieces"
+          subtitle="Our most prestigious handcrafted footwear, selected by master artisans for distinction and luxury."
+          badgeText="Curator's Choice"
+          badgeIcon={<Sparkles className="h-3.5 w-3.5" />}
+          viewAllHref="/shop?filter=featured"
+          viewAllText="View All Featured"
+          products={featuredShelfProducts}
+          variant="default"
+        />
+      )}
+
+      {/* ─── GENDER CATEGORIES (VISUAL GATEWAY) ─────────────────────────────── */}
+      <section className="py-14 sm:py-18 bg-secondary/20 border-y border-border/50">
         <div className="container mx-auto px-4">
-          <div className="bg-gradient-to-r from-stone-950 via-stone-900 to-stone-950 rounded-3xl p-6 sm:p-10 text-white mb-12 relative overflow-hidden shadow-2xl border border-amber-500/20">
+          <div className="text-center mb-10">
+            <h2 className="font-serif text-3xl sm:text-4xl font-bold tracking-tight mb-3">
+              Shop by Collection
+            </h2>
+            <p className="text-muted-foreground max-w-xl mx-auto text-sm sm:text-base">
+              Gents · Ladies · Kids · Accessories — crafted with master precision in Pasrur &amp; Ghakhar
+            </p>
+          </div>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            {genderCategories.map((cat) => (
+              <Link
+                key={cat.id}
+                href={`/shop?category=${cat.id}`}
+                className="group relative aspect-[3/4] overflow-hidden rounded-2xl bg-stone-100 dark:bg-stone-900 border border-border"
+              >
+                <div className="absolute inset-0 bg-gradient-to-t from-stone-950/90 via-stone-950/20 to-transparent z-10" />
+                <div className="absolute inset-0 transition-transform duration-700 group-hover:scale-105">
+                  <CategorySlideshow
+                    images={categoryImages[cat.id] || []}
+                    fallbackUrl={cat.imageUrl}
+                    alt={cat.label}
+                  />
+                </div>
+                <div className="absolute bottom-0 left-0 right-0 p-5 z-20">
+                  <h3 className="font-serif text-xl sm:text-2xl font-bold text-white">{cat.label}</h3>
+                  <span className="text-amber-300 text-xs sm:text-sm flex items-center gap-1 mt-1 opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300 font-medium">
+                    Shop {cat.label} <ArrowRight className="h-3 w-3" />
+                  </span>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ─── 1. MEN'S LUXURY HANDCRAFTED LEATHER SHELF (HORIZONTAL SCROLL) ───── */}
+      <ProductShelf
+        title="Men's Luxury Handcrafted Leather"
+        subtitle="Oxfords, Loafers, Moccasins, Peshawari Chappals — crafted for distinction and enduring elegance."
+        badgeText="Pasrur & Ghakhar Mastercraft"
+        badgeIcon={<Sparkles className="h-3.5 w-3.5" />}
+        viewAllHref="/shop?category=MEN"
+        viewAllText="View All Men"
+        products={menShelfProducts}
+        variant="muted"
+      />
+
+      {/* ─── STYLE CATEGORIES ─────────────────────────────────────────────── */}
+      <section className="py-12 bg-secondary/30">
+        <div className="container mx-auto px-4">
+          <h2 className="font-serif text-2xl font-bold mb-6 text-center">Browse by Style</h2>
+          <div className="grid grid-cols-3 sm:grid-cols-5 lg:grid-cols-9 gap-3">
+            {styleCategories.map((cat) => {
+              const dbStyle = (cat as { dbStyle?: string }).dbStyle ?? cat.id;
+              return (
+                <Link
+                  key={cat.id}
+                  href={`/shop?style=${dbStyle}`}
+                  className="flex flex-col items-center gap-2 p-3 sm:p-4 rounded-xl bg-card border hover:border-primary hover:shadow-md transition-all duration-200 group"
+                >
+                  <span className="text-2xl sm:text-3xl">{cat.emoji}</span>
+                  <span className="text-[11px] sm:text-xs font-medium text-center text-foreground group-hover:text-primary transition-colors leading-tight">
+                    {cat.label}
+                  </span>
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
+      {/* ─── 2. WOMEN'S COLLECTION SHELF (HORIZONTAL SCROLL) ────────────────── */}
+      <ProductShelf
+        title="Women's Footwear Collection"
+        subtitle="Comfort Chappals, Pumps, Casuals, Khussas — handcrafted with cushioned footbeds and supple genuine leather."
+        badgeText="Pure Comfort & Grace"
+        badgeIcon={<Award className="h-3.5 w-3.5" />}
+        viewAllHref="/shop?category=WOMEN"
+        viewAllText="View All Women"
+        products={womenShelfProducts}
+        variant="default"
+      />
+
+      {/* ─── 3. KIDS' COLLECTION & SCHOOL SHOES ──────────────────────────────── */}
+      <section className="pt-14 sm:pt-18 bg-gradient-to-b from-secondary/40 via-background to-background">
+        <div className="container mx-auto px-4">
+          <div className="bg-gradient-to-r from-stone-950 via-stone-900 to-stone-950 rounded-3xl p-6 sm:p-10 text-white mb-6 relative overflow-hidden shadow-2xl border border-amber-500/20">
             <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">
               <GraduationCap className="w-64 h-64 text-amber-400" />
             </div>
 
             <div className="relative z-10 max-w-3xl">
               <div className="inline-flex items-center gap-2 bg-amber-400 text-stone-950 px-3 py-1 rounded-full font-bold text-xs uppercase tracking-wider mb-4">
-                <Sparkles className="h-3.5 w-3.5" /> Featured Collection
+                <Sparkles className="h-3.5 w-3.5" /> Back-To-School Uniform Collection
               </div>
 
               <h2 className="font-serif text-3xl sm:text-5xl font-bold tracking-tight text-white mb-4">
-                Kids School Shoes Collection
+                Kids School Shoes &amp; Uniform Footwear
               </h2>
 
               <p className="text-stone-300 text-base sm:text-lg leading-relaxed mb-6">
@@ -277,126 +399,21 @@ export default async function HomePage() {
               </Button>
             </div>
           </div>
-
-          {/* Kids Products Grid */}
-          <div className="flex items-end justify-between mb-8">
-            <div>
-              <h3 className="font-serif text-2xl sm:text-3xl font-bold tracking-tight mb-2">
-                Featured Kids Footwear &amp; School Shoes
-              </h3>
-              <p className="text-muted-foreground">Black, Brown &amp; White school articles made for comfort and durability</p>
-            </div>
-            <Button asChild variant="outline" className="hidden sm:flex border-primary text-primary hover:bg-primary hover:text-primary-foreground">
-              <Link href="/shop?category=KIDS">
-                View All Kids <ArrowRight className="ml-2 h-4 w-4" />
-              </Link>
-            </Button>
-          </div>
-
-          {kidsCollection.length > 0 ? (
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
-              {(kidsCollection as unknown as CatalogProduct[]).slice(0, 4).map((product) => (
-                <ProductCard key={product.id} product={product} />
-              ))}
-            </div>
-          ) : (
-            <div className="p-8 text-center bg-muted/40 rounded-2xl border border-dashed">
-              <p className="text-muted-foreground font-medium mb-3">Browse our full range of Kids School Shoes in the catalog.</p>
-              <Button asChild className="bg-primary text-primary-foreground">
-                <Link href="/shop?category=KIDS">Shop Kids Shoes</Link>
-              </Button>
-            </div>
-          )}
         </div>
       </section>
 
-      {/* ─── GENDER CATEGORIES ─────────────────────────────── */}
-      <section className="py-16 lg:py-20">
-        <div className="container mx-auto px-4">
-          <div className="text-center mb-10">
-            <h2 className="font-serif text-3xl sm:text-4xl font-bold tracking-tight mb-3">
-              Shop by Collection
-            </h2>
-            <p className="text-muted-foreground max-w-xl mx-auto">
-              Gents · Ladies · Kids — crafted with precision in Pasrur and Ghakhar
-            </p>
-          </div>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            {genderCategories.map((cat) => (
-              <Link
-                key={cat.id}
-                href={`/shop?category=${cat.id}`}
-                className="group relative aspect-[3/4] overflow-hidden rounded-2xl bg-stone-100 dark:bg-stone-900 border border-border"
-              >
-                <div className="absolute inset-0 bg-gradient-to-t from-stone-950/90 via-stone-950/20 to-transparent z-10" />
-                <div className="absolute inset-0 transition-transform duration-700 group-hover:scale-105">
-                  <CategorySlideshow
-                    images={categoryImages[cat.id] || []}
-                    fallbackUrl={cat.imageUrl}
-                    alt={cat.label}
-                  />
-                </div>
-                <div className="absolute bottom-0 left-0 right-0 p-5 z-20">
-                  <h3 className="font-serif text-2xl font-bold text-white">{cat.label}</h3>
-                  <span className="text-amber-300 text-sm flex items-center gap-1 mt-1 opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300">
-                    Shop {cat.label} <ArrowRight className="h-3 w-3" />
-                  </span>
-                </div>
-              </Link>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ─── STYLE CATEGORIES ─────────────────────────────────────────────── */}
-      <section className="py-12 bg-secondary/30">
-        <div className="container mx-auto px-4">
-          <h2 className="font-serif text-2xl font-bold mb-6 text-center">Browse by Style</h2>
-          <div className="grid grid-cols-3 sm:grid-cols-5 lg:grid-cols-9 gap-3">
-            {styleCategories.map((cat) => {
-              const dbStyle = (cat as { dbStyle?: string }).dbStyle ?? cat.id;
-              return (
-                <Link
-                  key={cat.id}
-                  href={`/shop?style=${dbStyle}`}
-                  className="flex flex-col items-center gap-2 p-3 sm:p-4 rounded-xl bg-card border hover:border-primary hover:shadow-md transition-all duration-200 group"
-                >
-                  <span className="text-2xl sm:text-3xl">{cat.emoji}</span>
-                  <span className="text-[11px] sm:text-xs font-medium text-center text-foreground group-hover:text-primary transition-colors leading-tight">
-                    {cat.label}
-                  </span>
-                </Link>
-              );
-            })}
-          </div>
-        </div>
-      </section>
-
-      {/* ─── FEATURED COLLECTION ───────────────────────────── */}
-      {featured.length > 0 && (
-        <section className="py-16 lg:py-24">
-          <div className="container mx-auto px-4">
-            <div className="flex items-end justify-between mb-10">
-              <div>
-                <h2 className="font-serif text-3xl sm:text-4xl font-bold tracking-tight mb-2">
-                  Featured Collection
-                </h2>
-                <p className="text-muted-foreground">Our most sought-after styles</p>
-              </div>
-              <Button asChild variant="outline" className="hidden sm:flex border-primary text-primary hover:bg-primary hover:text-primary-foreground">
-                <Link href="/shop?filter=featured">
-                  View All <ArrowRight className="ml-2 h-4 w-4" />
-                </Link>
-              </Button>
-            </div>
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
-              {(featuredGrid as unknown as CatalogProduct[]).map((product) => (
-                <ProductCard key={product.id} product={product} />
-              ))}
-            </div>
-          </div>
-        </section>
-      )}
+      {/* Kids Shelf with Horizontal Scroll */}
+      <ProductShelf
+        title="Kids' Footwear & School Shoes"
+        subtitle="School Shoes, Sneakers, Casual Sandals — built tough for daily adventures with flexible, non-slip soles."
+        badgeText="Uniform & Everyday Wear"
+        badgeIcon={<GraduationCap className="h-3.5 w-3.5" />}
+        viewAllHref="/shop?category=KIDS"
+        viewAllText="View All Kids"
+        products={kidsShelfProducts}
+        variant="muted"
+        className="pt-2 sm:pt-4"
+      />
 
       {/* ─── CRAFTSMANSHIP HERITAGE BANNER ─────────────────────────── */}
       <section className="relative py-24 lg:py-32 overflow-hidden bg-gradient-to-br from-stone-950 via-stone-900 to-stone-950 text-white">
@@ -425,34 +442,20 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* ─── NEW ARRIVALS ──────────────────────────────────── */}
-      {newArrivals.length > 0 && (
-        <section className="py-16 lg:py-24">
-          <div className="container mx-auto px-4">
-            <div className="flex items-end justify-between mb-10">
-              <div>
-                <h2 className="font-serif text-3xl sm:text-4xl font-bold tracking-tight mb-2">
-                  New Arrivals
-                </h2>
-                <p className="text-muted-foreground">Fresh additions to the collection</p>
-              </div>
-              <Button asChild variant="outline" className="hidden sm:flex">
-                <Link href="/shop?filter=new">
-                  View All <ArrowRight className="ml-2 h-4 w-4" />
-                </Link>
-              </Button>
-            </div>
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
-              {(newArrivals as unknown as CatalogProduct[]).map((product) => (
-                <ProductCard key={product.id} product={product} />
-              ))}
-            </div>
-          </div>
-        </section>
-      )}
+      {/* ─── 4. SHOE CARE & ACCESSORIES SHELF (HORIZONTAL SCROLL) ───────────── */}
+      <ProductShelf
+        title="Shoe Care & Accessories"
+        subtitle="Polishes, Shiners, Creams, Socks, Insoles — essential care kits to maintain and extend your footwear's lifespan."
+        badgeText="Preserve & Protect"
+        badgeIcon={<ShieldCheck className="h-3.5 w-3.5" />}
+        viewAllHref="/shop?category=ACCESSORIES"
+        viewAllText="View All Accessories"
+        products={accShelfProducts}
+        variant="default"
+      />
 
       {/* ─── STORE LOCATIONS ───────────────────────────────── */}
-      <section className="py-16 lg:py-24 bg-stone-950 text-white">
+      <section className="py-16 lg:py-24 bg-stone-950 text-white border-t border-border/20">
         <div className="container mx-auto px-4">
           <div className="text-center mb-12">
             <p className="text-xs uppercase tracking-[0.3em] text-amber-400 mb-3 font-medium">Visit Us</p>
