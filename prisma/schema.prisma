@@ -370,7 +370,7 @@ model InventoryTransaction {
   type        InventoryTransactionType
   referenceId String                   // orderId | transferId | returnId
   createdAt   DateTime                 @default(now())
-  userId      String
+  userId      String?
 
   variant ProductVariant @relation(fields: [variantId], references: [id])
 
@@ -432,7 +432,9 @@ model StockAdjustment {
 model Order {
   id             String        @id @default(cuid())
   orderNumber    String        @unique
-  userId         String
+  userId         String?
+  guestEmail     String?
+  guestPhone     String?
   customerId     String?
   branchId       String
   status         OrderStatus   @default(PENDING)
@@ -450,7 +452,7 @@ model Order {
   updatedAt      DateTime      @updatedAt
 
   // Relations
-  user            User             @relation(fields: [userId], references: [id])
+  user            User?            @relation(fields: [userId], references: [id])
   customer        Customer?        @relation(fields: [customerId], references: [id])
   branch          Branch           @relation(fields: [branchId], references: [id])
   items           OrderItem[]

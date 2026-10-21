@@ -201,6 +201,9 @@ export default function CheckoutPage() {
       discountAmount: (cart.discountAmount || 0) + appliedBankDiscount,
       shippingCost: cart.shippingAmount,
       items,
+      // Guest contact info (used when not logged in)
+      guestEmail: !user ? formData.email : undefined,
+      guestPhone: !user ? formData.phone : undefined,
       // Meta CAPI enrichment
       fbp: getCookie('_fbp') || undefined,
       fbc: getCookie('_fbc') || undefined,

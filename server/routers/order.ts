@@ -44,6 +44,9 @@ const OrderCreateSchema = z.object({
       })
     )
     .min(1, "Order must contain at least one item"),
+  // Guest contact info (used when customer is not logged in)
+  guestEmail: z.string().email().optional(),
+  guestPhone: z.string().min(10).max(20).optional(),
   // Meta CAPI enrichment fields (sent from browser, not stored)
   fbp: z.string().optional(),
   fbc: z.string().optional(),
@@ -60,8 +63,8 @@ const VALID_COUPONS: Record<string, { type: "percent" | "fixed"; value: number }
 
 export const orderRouter = createTRPCRouter({
   /** Place a new order — atomic transaction (FR-ORD-06, NFR-REL-03) */
-  create: protectedProcedure.input(OrderCreateSchema).mutation(async ({ ctx, input }) => {
-    const userId = ctx.session.user.id;
+  create: publicProcedure.input(OrderCreateSchema).mutation(async ({ ctx, input }) => {
+    const userId = ctx.session?.user?.id ?? null;
 
     // Aggregate items in case client submits duplicate variant IDs
     const itemMap = new Map<string, number>();
@@ -140,7 +143,9 @@ export const orderRouter = createTRPCRouter({
       const createdOrder = await tx.order.create({
         data: {
           orderNumber,
-          userId,
+          ...(userId ? { userId } : {}),
+          guestEmail: !userId ? (input.guestEmail ?? input.shippingAddress.phone) : null,
+          guestPhone: !userId ? (input.guestPhone ?? input.shippingAddress.phone) : null,
           branchId: input.branchId,
           status: input.paymentMethod === "COD" ? "PENDING_VERIFICATION" : "PENDING",
           paymentMethod: input.paymentMethod,
@@ -178,19 +183,21 @@ export const orderRouter = createTRPCRouter({
             quantity: -qty,
             type: "SALE",
             referenceId: createdOrder.id,
-            userId,
+            ...(userId ? { userId } : {}),
           },
         });
       }
 
 
-      // 7. Link to customer profile if exists
-      const customerProfile = await tx.customer.findUnique({ where: { userId } });
-      if (customerProfile) {
-        await tx.order.update({
-          where: { id: createdOrder.id },
-          data: { customerId: customerProfile.id },
-        });
+      // 7. Link to customer profile if user is logged in
+      if (userId) {
+        const customerProfile = await tx.customer.findUnique({ where: { userId } });
+        if (customerProfile) {
+          await tx.order.update({
+            where: { id: createdOrder.id },
+            data: { customerId: customerProfile.id },
+          });
+        }
       }
 
       return createdOrder;
@@ -221,7 +228,7 @@ export const orderRouter = createTRPCRouter({
         event_source_url: input.eventSourceUrl ?? "https://executivemochi.pk/checkout",
         action_source: "website",
         user_data: buildUserData({
-          email: ctx.session.user.email,
+          email: ctx.session?.user?.email ?? input.guestEmail,
           phone: addr?.phone,
           firstName,
           lastName,
@@ -229,7 +236,7 @@ export const orderRouter = createTRPCRouter({
           state: addr?.province,
           postalCode: addr?.postalCode,
           country: "pk",
-          userId,
+          userId: userId ?? undefined,
           ip: input.clientIp,
           ua: input.clientUserAgent,
           fbp: input.fbp,
@@ -315,6 +322,8 @@ export const orderRouter = createTRPCRouter({
           OR: [
             { orderNumber: { contains: input.search, mode: "insensitive" } },
             { user: { name: { contains: input.search, mode: "insensitive" } } },
+            { guestEmail: { contains: input.search, mode: "insensitive" } },
+            { guestPhone: { contains: input.search, mode: "insensitive" } },
           ],
         }),
       };
