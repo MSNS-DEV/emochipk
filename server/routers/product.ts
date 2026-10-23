@@ -274,7 +274,7 @@ export const productRouter = createTRPCRouter({
   create: adminProcedure.input(ProductCreateSchema).mutation(async ({ ctx, input }) => {
     const { variants, images, ...productData } = input;
     try {
-      return await ctx.db.product.create({
+      const createdProduct = await ctx.db.product.create({
         data: {
           ...productData,
           basePrice: productData.basePrice,
@@ -298,6 +298,26 @@ export const productRouter = createTRPCRouter({
         },
         include: { variants: true, images: true },
       });
+
+      // Initialize inventory for all active branches
+      const activeBranches = await ctx.db.branch.findMany({ where: { isActive: true } });
+      for (const variant of createdProduct.variants) {
+        for (const branch of activeBranches) {
+          await ctx.db.inventory.upsert({
+            where: { branchId_variantId: { branchId: branch.id, variantId: variant.id } },
+            create: {
+              branchId: branch.id,
+              variantId: variant.id,
+              quantity: 15,
+              reserved: 0,
+              lowStockThreshold: 5,
+            },
+            update: {},
+          });
+        }
+      }
+
+      return createdProduct;
     } catch (error: any) {
       if (error?.code === "P2002") {
         const target = error.meta?.target;
@@ -388,7 +408,7 @@ export const productRouter = createTRPCRouter({
             },
           });
         } else {
-          await ctx.db.productVariant.create({
+          const newVariant = await ctx.db.productVariant.create({
             data: {
               productId: id,
               sku: v.sku,
@@ -403,6 +423,20 @@ export const productRouter = createTRPCRouter({
               isActive: true,
             },
           });
+          const activeBranches = await ctx.db.branch.findMany({ where: { isActive: true } });
+          for (const branch of activeBranches) {
+            await ctx.db.inventory.upsert({
+              where: { branchId_variantId: { branchId: branch.id, variantId: newVariant.id } },
+              create: {
+                branchId: branch.id,
+                variantId: newVariant.id,
+                quantity: 15,
+                reserved: 0,
+                lowStockThreshold: 5,
+              },
+              update: {},
+            });
+          }
         }
       }
     }

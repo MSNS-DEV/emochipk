@@ -18,12 +18,9 @@ const handler = async (req: NextRequest) => {
     req,
     router: appRouter,
     createContext: () => createContext(session),
-    onError:
-      process.env.NODE_ENV === "development"
-        ? ({ path, error }) => {
-          console.error(`tRPC Error on ${path ?? "<no-path>"}:`, error);
-        }
-        : undefined,
+    onError: ({ path, error }) => {
+      console.error(`[tRPC Error] on ${path ?? "<no-path>"}:`, error.message, error.cause ?? "");
+    },
   });
 };
 
