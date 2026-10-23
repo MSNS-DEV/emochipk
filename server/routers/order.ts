@@ -73,81 +73,67 @@ export const orderRouter = createTRPCRouter({
     }
     const uniqueVariantIds = Array.from(itemMap.keys());
 
-    // ── Step 1: run the DB transaction ──────────────────────────────────
-    const order = await ctx.db.$transaction(async (tx) => {
-      // 0. Resolve active fulfillment branches
-      const activeBranches = await tx.branch.findMany({
-        where: { isActive: true },
-        select: { id: true, name: true },
+    // 0. Resolve active fulfillment branches
+    const activeBranches = await ctx.db.branch.findMany({
+      where: { isActive: true },
+      select: { id: true, name: true },
+    });
+    if (activeBranches.length === 0) {
+      throw new TRPCError({
+        code: "INTERNAL_SERVER_ERROR",
+        message: "No active branches available for fulfillment.",
       });
-      if (activeBranches.length === 0) {
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "No active branches available for fulfillment.",
-        });
-      }
+    }
 
-      // 1. Get all variants with current prices and inventory across all active branches
-      const variants = await tx.productVariant.findMany({
-        where: { id: { in: uniqueVariantIds } },
-        include: { product: true, inventory: true },
-      });
+    // 1. Get all variants with current prices and inventory across all active branches
+    const variants = await ctx.db.productVariant.findMany({
+      where: { id: { in: uniqueVariantIds } },
+      include: { product: true, inventory: true },
+    });
 
-      // Verify all variants exist
-      for (const variantId of uniqueVariantIds) {
-        const variant = variants.find((v) => v.id === variantId);
-        if (!variant) throw new TRPCError({ code: "NOT_FOUND", message: `Variant ${variantId} not found` });
-      }
+    // Verify all variants exist
+    for (const variantId of uniqueVariantIds) {
+      const variant = variants.find((v) => v.id === variantId);
+      if (!variant) throw new TRPCError({ code: "NOT_FOUND", message: `Variant ${variantId} not found` });
+    }
 
-      // Candidate branch resolution: prefer requested branch, fallback across active branches
-      const preferredBranchId = input.branchId && activeBranches.some((b) => b.id === input.branchId)
-        ? input.branchId
-        : (activeBranches.find((b) => b.id === "branch-pasrur-01")?.id ?? activeBranches[0].id);
+    // Candidate branch resolution: prefer requested branch, fallback across active branches
+    const preferredBranchId = input.branchId && activeBranches.some((b) => b.id === input.branchId)
+      ? input.branchId
+      : (activeBranches.find((b) => b.id === "branch-pasrur-01")?.id ?? activeBranches[0].id);
 
-      const candidateBranchIds = [
-        preferredBranchId,
-        ...activeBranches.map((b) => b.id).filter((id) => id !== preferredBranchId),
-      ];
+    const candidateBranchIds = [
+      preferredBranchId,
+      ...activeBranches.map((b) => b.id).filter((id) => id !== preferredBranchId),
+    ];
 
-      // Check if any active branch has sufficient stock for all requested items
-      let fulfillmentBranchId: string | null = null;
-      for (const branchId of candidateBranchIds) {
-        const canFulfill = uniqueVariantIds.every((variantId) => {
-          const variant = variants.find((v) => v.id === variantId)!;
-          const inv = variant.inventory.find((i) => i.branchId === branchId);
-          if (!inv) return false;
-          const available = inv.quantity - inv.reserved;
-          const reqQty = itemMap.get(variantId) ?? 0;
-          return available >= reqQty;
-        });
-        if (canFulfill) {
-          fulfillmentBranchId = branchId;
-          break;
-        }
-      }
-
-      // If no candidate branch currently satisfies, fallback to preferred branch
-      if (!fulfillmentBranchId) {
-        fulfillmentBranchId = preferredBranchId;
-      }
-
-      // 2. Validate and ensure inventory availability for chosen fulfillment branch
-      for (const [variantId, qty] of itemMap.entries()) {
+    // Check if any active branch has sufficient stock for all requested items
+    let fulfillmentBranchId: string | null = null;
+    for (const branchId of candidateBranchIds) {
+      const canFulfill = uniqueVariantIds.every((variantId) => {
         const variant = variants.find((v) => v.id === variantId)!;
-        let inv = variant.inventory.find((i) => i.branchId === fulfillmentBranchId);
-        if (!inv) {
-          // If variant is active in catalog but lacks inventory row at fulfillment branch, auto-provision
-          inv = await tx.inventory.create({
-            data: {
-              branchId: fulfillmentBranchId,
-              variantId,
-              quantity: 15,
-              reserved: 0,
-              lowStockThreshold: 5,
-            },
-          });
-          variant.inventory.push(inv);
-        }
+        const inv = variant.inventory.find((i) => i.branchId === branchId);
+        if (!inv) return false;
+        const available = inv.quantity - inv.reserved;
+        const reqQty = itemMap.get(variantId) ?? 0;
+        return available >= reqQty;
+      });
+      if (canFulfill) {
+        fulfillmentBranchId = branchId;
+        break;
+      }
+    }
+
+    // If no candidate branch currently satisfies, fallback to preferred branch
+    if (!fulfillmentBranchId) {
+      fulfillmentBranchId = preferredBranchId;
+    }
+
+    // 2. Validate inventory availability for chosen fulfillment branch
+    for (const [variantId, qty] of itemMap.entries()) {
+      const variant = variants.find((v) => v.id === variantId)!;
+      const inv = variant.inventory.find((i) => i.branchId === fulfillmentBranchId);
+      if (inv) {
         const available = inv.quantity - inv.reserved;
         if (available < qty) {
           throw new TRPCError({
@@ -156,122 +142,130 @@ export const orderRouter = createTRPCRouter({
           });
         }
       }
+    }
 
-      // 3. Calculate subtotal & enforce server-side pricing integrity
-      let subtotal = 0;
-      const orderItems = Array.from(itemMap.entries()).map(([variantId, quantity]) => {
-        const variant = variants.find((v) => v.id === variantId)!;
-        const unitPrice =
-          Number(variant.product.salePrice ?? variant.product.basePrice) +
-          Number(variant.priceDelta);
-        const itemTotal = unitPrice * quantity;
-        subtotal += itemTotal;
-        return { variantId, quantity, unitPrice, subtotal: itemTotal };
-      });
+    // 3. Calculate subtotal & enforce server-side pricing integrity
+    let subtotal = 0;
+    const orderItems = Array.from(itemMap.entries()).map(([variantId, quantity]) => {
+      const variant = variants.find((v) => v.id === variantId)!;
+      const unitPrice =
+        Number(variant.product.salePrice ?? variant.product.basePrice) +
+        Number(variant.priceDelta);
+      const itemTotal = unitPrice * quantity;
+      subtotal += itemTotal;
+      return { variantId, quantity, unitPrice, subtotal: itemTotal };
+    });
 
-      // Server-side coupon verification: prevents arbitrary client discount injection
-      let verifiedDiscount = 0;
-      if (input.couponCode) {
-        const code = input.couponCode.trim().toUpperCase();
-        const promo = VALID_COUPONS[code];
-        if (!promo) {
-          throw new TRPCError({ code: "BAD_REQUEST", message: "Invalid coupon code." });
-        }
-        verifiedDiscount =
-          promo.type === "percent"
-            ? Math.round(subtotal * promo.value)
-            : Math.min(promo.value, subtotal);
+    // Server-side coupon verification: prevents arbitrary client discount injection
+    let verifiedDiscount = 0;
+    if (input.couponCode) {
+      const code = input.couponCode.trim().toUpperCase();
+      const promo = VALID_COUPONS[code];
+      if (!promo) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Invalid coupon code." });
       }
+      verifiedDiscount =
+        promo.type === "percent"
+          ? Math.round(subtotal * promo.value)
+          : Math.min(promo.value, subtotal);
+    }
 
-      // If no valid coupon was provided, discount must be 0
-      const safeDiscount = input.couponCode
-        ? Math.min(input.discountAmount > 0 ? input.discountAmount : verifiedDiscount, verifiedDiscount)
-        : 0;
+    // If no valid coupon was provided, discount must be 0
+    const safeDiscount = input.couponCode
+      ? Math.min(input.discountAmount > 0 ? input.discountAmount : verifiedDiscount, verifiedDiscount)
+      : 0;
 
-      // Standard shipping rule: Free shipping for orders >= 5,000 PKR, else 250 PKR
-      const shippingCost = subtotal >= 5000 ? 0 : 250;
-      const totalAmount = Math.max(0, subtotal - safeDiscount + shippingCost);
+    // Standard shipping rule: Free shipping for orders >= 5,000 PKR, else 250 PKR
+    const shippingCost = subtotal >= 5000 ? 0 : 250;
+    const totalAmount = Math.max(0, subtotal - safeDiscount + shippingCost);
 
-      // 4. Generate order number
-      const orderNumber = `EM-${Date.now().toString(36).toUpperCase()}`;
+    // 4. Generate order number
+    const orderNumber = `EM-${Date.now().toString(36).toUpperCase()}`;
 
-      // 5. Create order
-      const createdOrder = await tx.order.create({
-        data: {
-          orderNumber,
-          ...(userId ? { userId } : {}),
-          guestEmail: !userId ? (input.guestEmail ?? input.shippingAddress.phone) : null,
-          guestPhone: !userId ? (input.guestPhone ?? input.shippingAddress.phone) : null,
-          branchId: fulfillmentBranchId,
-          status: input.paymentMethod === "COD" ? "PENDING_VERIFICATION" : "PENDING",
-          paymentMethod: input.paymentMethod,
-          paymentStatus: input.paymentMethod === "COD" ? "COD_PENDING_COLLECTION" : "UNPAID",
-          totalAmount,
-          shippingCost,
-          discountAmount: safeDiscount,
-          notes: input.notes,
-          items: { create: orderItems },
-          shippingAddress: { create: input.shippingAddress },
-        },
-        include: {
-          items: { include: { variant: { include: { product: true } } } },
-          shippingAddress: true,
-        },
-      });
-
-      // 6. Decrement / reserve inventory for aggregated quantities
-      for (const [variantId, qty] of itemMap.entries()) {
-        if (input.paymentMethod === "COD") {
-          await tx.inventory.upsert({
-            where: { branchId_variantId: { branchId: fulfillmentBranchId, variantId } },
-            create: {
-              branchId: fulfillmentBranchId,
-              variantId,
-              quantity: 15,
-              reserved: qty,
-              lowStockThreshold: 5,
-            },
-            update: { reserved: { increment: qty } },
-          });
-        } else {
-          await tx.inventory.upsert({
-            where: { branchId_variantId: { branchId: fulfillmentBranchId, variantId } },
-            create: {
-              branchId: fulfillmentBranchId,
-              variantId,
-              quantity: Math.max(0, 15 - qty),
-              reserved: 0,
-              lowStockThreshold: 5,
-            },
-            update: { quantity: { decrement: qty } },
-          });
-        }
-        await tx.inventoryTransaction.create({
+    // ── Step 1: run atomic DB transaction for order and inventory ────────
+    const order = await ctx.db.$transaction(
+      async (tx) => {
+        // Create order
+        const createdOrder = await tx.order.create({
           data: {
-            variantId,
-            branchId: fulfillmentBranchId,
-            quantity: -qty,
-            type: "SALE",
-            referenceId: createdOrder.id,
+            orderNumber,
             ...(userId ? { userId } : {}),
+            guestEmail: !userId ? (input.guestEmail ?? input.shippingAddress.phone) : null,
+            guestPhone: !userId ? (input.guestPhone ?? input.shippingAddress.phone) : null,
+            branchId: fulfillmentBranchId,
+            status: input.paymentMethod === "COD" ? "PENDING_VERIFICATION" : "PENDING",
+            paymentMethod: input.paymentMethod,
+            paymentStatus: input.paymentMethod === "COD" ? "COD_PENDING_COLLECTION" : "UNPAID",
+            totalAmount,
+            shippingCost,
+            discountAmount: safeDiscount,
+            notes: input.notes,
+            items: { create: orderItems },
+            shippingAddress: { create: input.shippingAddress },
+          },
+          include: {
+            items: { include: { variant: { include: { product: true } } } },
+            shippingAddress: true,
           },
         });
-      }
 
-
-      // 7. Link to customer profile if user is logged in
-      if (userId) {
-        const customerProfile = await tx.customer.findUnique({ where: { userId } });
-        if (customerProfile) {
-          await tx.order.update({
-            where: { id: createdOrder.id },
-            data: { customerId: customerProfile.id },
+        // Decrement / reserve inventory for aggregated quantities
+        for (const [variantId, qty] of itemMap.entries()) {
+          if (input.paymentMethod === "COD") {
+            await tx.inventory.upsert({
+              where: { branchId_variantId: { branchId: fulfillmentBranchId, variantId } },
+              create: {
+                branchId: fulfillmentBranchId,
+                variantId,
+                quantity: 15,
+                reserved: qty,
+                lowStockThreshold: 5,
+              },
+              update: { reserved: { increment: qty } },
+            });
+          } else {
+            await tx.inventory.upsert({
+              where: { branchId_variantId: { branchId: fulfillmentBranchId, variantId } },
+              create: {
+                branchId: fulfillmentBranchId,
+                variantId,
+                quantity: Math.max(0, 15 - qty),
+                reserved: 0,
+                lowStockThreshold: 5,
+              },
+              update: { quantity: { decrement: qty } },
+            });
+          }
+          await tx.inventoryTransaction.create({
+            data: {
+              variantId,
+              branchId: fulfillmentBranchId,
+              quantity: -qty,
+              type: "SALE",
+              referenceId: createdOrder.id,
+              ...(userId ? { userId } : {}),
+            },
           });
         }
-      }
 
-      return createdOrder;
-    });
+        // Link to customer profile if user is logged in
+        if (userId) {
+          const customerProfile = await tx.customer.findUnique({ where: { userId } });
+          if (customerProfile) {
+            await tx.order.update({
+              where: { id: createdOrder.id },
+              data: { customerId: customerProfile.id },
+            });
+          }
+        }
+
+        return createdOrder;
+      },
+      {
+        maxWait: 15000,
+        timeout: 30000,
+      }
+    );
 
     // ── Step 2: fire Meta CAPI Purchase event OUTSIDE the transaction ────
     const addr = order.shippingAddress as {
